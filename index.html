@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Abertura de Postos — Rede Sander</title>
+<style>
+:root{
+  --pri:#7a1616; --pri2:#a8281f; --pri3:#f2a93c; --pri-light:#fbe9e7; --pri-deep:#3d0f0f;
+  --bg:#fbf2e9; --bg2:#f7e9dc; --card:#ffffff; --text:#2b2016; --muted:#8a7a68;
+  --ok:#2e7d32; --ok-bg:#e8f5e9;
+  --andamento:#b8770a; --andamento-bg:#fff4e0;
+  --pendente:#c62828; --pendente-bg:#fdecea;
+  --na:#757575; --na-bg:#eeeeee;
+  --border:#e8dcce;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);}
+.header{background:linear-gradient(100deg,var(--pri3),var(--pri2) 55%,var(--pri-deep));color:#fff;padding:16px 18px;position:sticky;top:0;z-index:20;box-shadow:0 2px 10px rgba(0,0,0,.15);}
+.header h1{margin:0;font-size:18px;font-weight:700;}
+.header .sub{font-size:12.5px;opacity:.92;margin-top:2px;}
+.header-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.back-btn{background:rgba(255,255,255,.2);border:none;color:#fff;padding:7px 12px;border-radius:8px;font-size:13px;cursor:pointer;}
+.back-btn:active{background:rgba(255,255,255,.35);}
+.container{max-width:960px;margin:0 auto;padding:16px;padding-bottom:60px;}
+.card{background:var(--card);border-radius:14px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);border:1px solid var(--border);}
+.btn{background:var(--pri2);color:#fff;border:none;padding:11px 16px;border-radius:10px;font-size:14.5px;font-weight:600;cursor:pointer;}
+.btn:active{background:var(--pri);}
+.btn-outline{background:#fff;color:var(--pri2);border:1.5px solid var(--pri2);}
+.btn-sm{padding:6px 11px;font-size:12.5px;border-radius:8px;}
+.btn-block{width:100%;}
+.fab{position:fixed;right:18px;bottom:18px;border-radius:50px;padding:14px 20px;box-shadow:0 4px 14px rgba(0,0,0,.25);font-size:15px;z-index:15;}
+
+/* ===== Lista de Postos ===== */
+.posto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:14px;}
+.posto-card{cursor:pointer;transition:transform .1s;}
+.posto-card:active{transform:scale(.98);}
+.posto-card h3{margin:0 0 4px;font-size:16px;color:var(--pri-deep);}
+.posto-card .meta{font-size:12.5px;color:var(--muted);margin-bottom:10px;}
+.progress-bar{height:8px;border-radius:6px;background:var(--border);overflow:hidden;display:flex;}
+.progress-bar div{height:100%;}
+.posto-card .pct{font-size:12px;color:var(--muted);margin-top:6px;}
+.empty-state{text-align:center;color:var(--muted);padding:40px 20px;}
+
+/* ===== Dashboard ===== */
+.summary-bar{display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap;}
+.summary-tile{flex:1;min-width:130px;border-radius:14px;padding:14px 16px;text-align:center;}
+.summary-tile .num{font-size:28px;font-weight:800;line-height:1;}
+.summary-tile .lbl{font-size:12px;margin-top:4px;font-weight:600;}
+.tile-ok{background:var(--ok-bg);color:var(--ok);}
+.tile-pend{background:var(--pendente-bg);color:var(--pendente);}
+.tile-and{background:var(--andamento-bg);color:var(--andamento);}
+.tile-na{background:var(--na-bg);color:var(--na);}
+
+.setor-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;}
+.setor-card{cursor:pointer;text-align:left;position:relative;}
+.setor-card:active{transform:scale(.98);}
+.setor-card .icon{font-size:24px;}
+.setor-card h4{margin:8px 0 2px;font-size:14.5px;color:var(--pri-deep);}
+.setor-card .total{font-size:11.5px;color:var(--muted);}
+.badge-pend{position:absolute;top:10px;right:10px;background:var(--pendente);color:#fff;font-size:12px;font-weight:700;border-radius:20px;padding:2px 9px;}
+.badge-zero{background:var(--ok);}
+
+/* ===== Setor detail ===== */
+.item-row{border-bottom:1px solid var(--border);padding:14px 0;}
+.item-row:last-child{border-bottom:none;}
+.item-title{font-weight:600;font-size:14.5px;margin-bottom:2px;}
+.item-fase{font-size:11px;color:var(--muted);margin-bottom:8px;}
+.item-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;}
+select, input[type=text], textarea{
+  font-family:inherit;font-size:13.5px;padding:7px 9px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--text);
+}
+.status-select{font-weight:700;}
+.status-Pendente{color:var(--pendente);background:var(--pendente-bg);border-color:var(--pendente);}
+.status-Em_Andamento{color:var(--andamento);background:var(--andamento-bg);border-color:var(--andamento);}
+.status-Concluído{color:var(--ok);background:var(--ok-bg);border-color:var(--ok);}
+.status-N_A{color:var(--na);background:var(--na-bg);border-color:var(--na);}
+input.responsavel{width:150px;}
+textarea.obs{width:100%;min-height:34px;resize:vertical;margin-top:4px;}
+.transfer-btn{background:var(--pri-light);color:var(--pri2);border:1px solid var(--pri3);}
+.transfer-row{margin-top:6px;display:none;gap:8px;align-items:center;}
+.transfer-row.open{display:flex;flex-wrap:wrap;}
+.transfer-hist{font-size:11px;color:var(--muted);margin-top:5px;}
+
+.filter-chips{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+.chip{padding:6px 12px;border-radius:20px;font-size:12.5px;border:1.5px solid var(--border);background:#fff;cursor:pointer;color:var(--muted);}
+.chip.active{background:var(--pri2);color:#fff;border-color:var(--pri2);}
+
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:50;padding:16px;}
+.modal-bg.open{display:flex;}
+.modal{background:#fff;border-radius:14px;padding:20px;max-width:400px;width:100%;}
+.modal h3{margin-top:0;}
+.modal label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px;}
+.modal input, .modal select{width:100%;}
+.modal-actions{display:flex;gap:10px;margin-top:18px;}
+.sync-note{font-size:11.5px;color:var(--muted);text-align:center;margin-top:16px;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-row">
+    <div>
+      <h1 id="hdr-title">Abertura de Postos</h1>
+      <div class="sub" id="hdr-sub">Rede Sander</div>
+    </div>
+    <button class="back-btn" id="btn-back" style="display:none">← Voltar</button>
+  </div>
+</div>
+
+<div class="container" id="app"></div>
+
+<button class="btn fab" id="btn-novo-posto" style="display:none">+ Novo Posto</button>
+
+<!-- Modal: novo posto -->
+<div class="modal-bg" id="modal-novo-posto">
+  <div class="modal">
+    <h3>Novo Posto</h3>
+    <label>Nome do posto</label>
+    <input type="text" id="np-nome" placeholder="Ex: Canela">
+    <label>Bandeira</label>
+    <input type="text" id="np-bandeira" placeholder="Ex: Rodoil, Vibra, Ipiranga">
+    <label>Data de abertura prevista</label>
+    <input type="date" id="np-data">
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-block" id="np-cancel">Cancelar</button>
+      <button class="btn btn-block" id="np-confirmar">Criar checklist</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: config sync -->
+<div class="modal-bg" id="modal-config">
+  <div class="modal">
+    <h3>Configuração de sincronização</h3>
+    <label>URL do Google Apps Script (SCRIPT_URL)</label>
+    <input type="text" id="cfg-url" placeholder="https://script.google.com/macros/s/.../exec">
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-block" id="cfg-cancel">Cancelar</button>
+      <button class="btn btn-block" id="cfg-salvar">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: nova pergunta/item num setor -->
+<div class="modal-bg" id="modal-novo-item">
+  <div class="modal">
+    <h3>Adicionar pergunta</h3>
+    <label>Pergunta / item para este setor</label>
+    <input type="text" id="ni-texto" placeholder="Ex: Verificar contrato de manutenção do ar condicionado">
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-block" id="ni-cancel">Cancelar</button>
+      <button class="btn btn-block" id="ni-confirmar">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= CONFIG ================= */
+var SCRIPT_URL_DEFAULT = ''; // preencher depois de publicar o Apps Script (ver apps_script.gs)
+function getScriptUrl(){ return localStorage.getItem('ab_script_url') || SCRIPT_URL_DEFAULT; }
+
+var STATUS_LIST = ['Pendente','Em Andamento','Concluído','N/A'];
+function statusClass(s){ return 'status-' + s.replace(/\s/g,'_').replace('í','i'); }
+
+var SETORES = [
+  {key:'Direção', icone:'🧭'},
+  {key:'Contabilidade', icone:'📊'},
+  {key:'Obras / Meio Ambiente', icone:'🏗️'},
+  {key:'Logística', icone:'🚚'},
+  {key:'Compras', icone:'🛒'},
+  {key:'Operação', icone:'⚙️'},
+  {key:'Varejo / Mix', icone:'🏪'},
+  {key:'Estoque / Auditoria', icone:'📦'},
+  {key:'Pricing', icone:'💲'},
+  {key:'T.I', icone:'💻'},
+  {key:'Marketing', icone:'📣'},
+  {key:'RH', icone:'👥'},
+  {key:'Faturamento', icone:'💳'},
+  {key:'Comercial', icone:'🤝'}
+];
+
+/* item template: [texto, fase, setor] */
+var ITEMS_TEMPLATE = [
+["horario da filial","Documentação","Direção"],
+["Serviços oferecidos","Documentação","Direção"],
+["Tipo de loja","Documentação","Direção"],
+["Contrato de locação","Documentação","Contabilidade"],
+["Cartão CNPJ","Documentação","Obras / Meio Ambiente"],
+["PPCI","Documentação","Obras / Meio Ambiente"],
+["FEPAN","Documentação","Obras / Meio Ambiente"],
+["Confecção Placa FEPAN + ANP + Adesivo Bomba (CNPJ)","Documentação","Obras / Meio Ambiente"],
+["Certificado Digital/Senha","Documentação","Obras / Meio Ambiente"],
+["Alvará de Localização","Documentação","Obras / Meio Ambiente"],
+["Alvará de Sanitário","Documentação","Obras / Meio Ambiente"],
+["IBAMA","Documentação","Obras / Meio Ambiente"],
+["ANP","Documentação","Obras / Meio Ambiente"],
+["Placa preços ANP","Documentação","Obras / Meio Ambiente"],
+["Instalação ou troca de titularidade de água e luz","Documentação","Obras / Meio Ambiente"],
+["SASC (Tancagem, Nº de bicos, Nº Bombas, Mapa, Modelo Bombas)","Documentação","Obras / Meio Ambiente"],
+["Contratação de empresa para coleta de resíduos","Documentação","Obras / Meio Ambiente"],
+["Seguros patrimoniais","Documentação","Direção"],
+["Cadastro de bandeira","Documentação","Obras / Meio Ambiente"],
+["Contagem de patrimônio (Relatório)","Documentação","Logística"],
+["Cadastro com distribuidoras de combustível (IBM/Senha)","Documentação","Direção"],
+["Cadastro com distribuidoras (Motoristas)","Documentação","Logística"],
+["Controle de IPTU","Documentação","Obras / Meio Ambiente"],
+["Revenda de GLP","Documentação","Obras / Meio Ambiente"],
+["Extintores","Documentação","Obras / Meio Ambiente"],
+["Bombas e aferições, teste de estanqueidade","Documentação","Obras / Meio Ambiente"],
+["Cadastro do posto no checklist fácil","Documentação","Direção"],
+["Classificação do posto (Urbano/Rodovia)","Documentação","Compras"],
+["Contabilidade (Transição)","Contabilidade","Contabilidade"],
+["Contratação de Funcionários","Operação","Operação"],
+["QL aprovado para a filial","Operação","Operação"],
+["Exames admissionais","Operação","Operação"],
+["Treinamento do Gestor","Operação","Operação"],
+["Treinamento operacional da equipe","Operação","Operação"],
+["Horário de operação","Operação","Operação"],
+["Localização","Operação","Operação"],
+["Compra de estoque","Operação","Operação"],
+["Grupo whatsapp Supervisor","Operação","Operação"],
+["Pedido de Uniformes/EPIs","Operação","Operação"],
+["Fichas de controle de entrega de uniformes + EPIs","Operação","Operação"],
+["Segurança posto","Operação","Operação"],
+["Lastro de Caixa","Operação","Operação"],
+["Cheque troco","Operação","Operação"],
+["Livro do ministério do trabalho","Operação","Operação"],
+["Planogramação de loja, PA, FOOD...","Operação","Varejo / Mix"],
+["Aluguéis (Locações ativas)","Operação","Operação"],
+["Limpeza caixa separadora","Operação","Operação"],
+["Máquinas de ursos","Operação","Operação"],
+["Expositores de pista/sander/stp/centralsul","Operação","Operação"],
+["Manutenções nos jardins e vasos de flor","Operação","Operação"],
+["Montagem da Loja","Operação","Operação"],
+["Data da montagem","Operação","Operação"],
+["Inventário de Combustível","Estoque","Estoque / Auditoria"],
+["Inventário de Loja","Estoque","Estoque / Auditoria"],
+["NF de estoque","Estoque","Estoque / Auditoria"],
+["Pedidos combustíveis","Estoque","Logística"],
+["Loja (Cadastro/Precificação)","Cadastro/Precificação","Compras"],
+["Combustíveis (Cadastro/Precificação)","Cadastro/Precificação","Pricing"],
+["Volume Comb.","Metas Posto","Direção"],
+["Tamanho de loja (cluster, mobiliário)","Metas Posto","Direção"],
+["Previsão de venda loja","Metas Posto","Direção"],
+["Previsão de venda PA","Metas Posto","Direção"],
+["Mobiliário Loja","Compras/Manutenções","Compras"],
+["Mobiliário Sala Gerente","Compras/Manutenções","Compras"],
+["Mobiliário Cozinha (Retaguarda)","Compras/Manutenções","Compras"],
+["Mobiliário Vestiários","Compras/Manutenções","Compras"],
+["Prateleiras de estoques loja","Compras/Manutenções","Compras"],
+["Prateleiras de estoques PA","Compras/Manutenções","Compras"],
+["Ar condicionado","Compras/Manutenções","Compras"],
+["Freezer Bebidas","Compras/Manutenções","Compras"],
+["Freezer Cervejeiros","Compras/Manutenções","Compras"],
+["Freezer Retaguarda bebidas","Compras/Manutenções","Compras"],
+["Freezer Retaguarda Congelados","Compras/Manutenções","Compras"],
+["Fornos","Compras/Manutenções","Compras"],
+["Máquina de café","Compras/Manutenções","Compras"],
+["Micro-ondas","Compras/Manutenções","Compras"],
+["Tapete capacho","Compras/Manutenções","Compras"],
+["Cafeteira","Compras/Manutenções","Compras"],
+["Bandejas food","Compras/Manutenções","Compras"],
+["Mobiliário Banheiros","Compras/Manutenções","Compras"],
+["Porta papéis, Saboneteiras, Secadores","Compras/Manutenções","Compras"],
+["Estufas food","Compras/Manutenções","Compras"],
+["Televisores","Compras/Manutenções","Compras"],
+["Tambor de Arla","Compras/Manutenções","Compras"],
+["Ferramentas troca de óleo","Compras/Manutenções","Compras"],
+["Carrinho para pingadeira (Troca de óleo)","Compras/Manutenções","Compras"],
+["Propulsora para Graxa","Compras/Manutenções","Compras"],
+["Tambores para Embalagens","Compras/Manutenções","Compras"],
+["Tambores para coletas de óleo descartado/filtros","Compras/Manutenções","Compras"],
+["Tambores para Panos","Compras/Manutenções","Compras"],
+["Régua de medição","Compras/Manutenções","Compras"],
+["Kit densímetro","Compras/Manutenções","Compras"],
+["Proveta de 1 litro","Compras/Manutenções","Compras"],
+["Proveta de 100 ml","Compras/Manutenções","Compras"],
+["Bomba de Drenagem","Compras/Manutenções","Compras"],
+["Aferidor de bombas","Compras/Manutenções","Compras"],
+["Calibrador de AR","Compras/Manutenções","Compras"],
+["Compressor","Compras/Manutenções","Compras"],
+["Câmeras","Compras/Manutenções","Obras / Meio Ambiente"],
+["Alarmes","Compras/Manutenções","Obras / Meio Ambiente"],
+["Expositor Lubrificante","Compras/Manutenções","Compras"],
+["Monitores","Compras/Manutenções","T.I"],
+["Computadores","Compras/Manutenções","T.I"],
+["Impressora (Locação)","Compras/Manutenções","T.I"],
+["Antenas Wi-fi","Compras/Manutenções","T.I"],
+["Contratação de internet","Compras/Manutenções","T.I"],
+["PAY","Compras/Manutenções","T.I"],
+["Tablet de Comunicação","Compras/Manutenções","T.I"],
+["Computador retaguarda","Compras/Manutenções","T.I"],
+["Automação/ Telemed","Compras/Manutenções","T.I"],
+["POS","Compras/Manutenções","T.I"],
+["Impressora fiscal","Compras/Manutenções","T.I"],
+["Relógio ponto","Compras/Manutenções","T.I"],
+["Telefone móvel","Compras/Manutenções","T.I"],
+["Nobreak","Compras/Manutenções","T.I"],
+["Gaveta de caixa","Compras/Manutenções","Compras"],
+["Pitoco (batente)","Compras/Manutenções","Direção"],
+["Adesivos troca de óleo (Informações fachada, 15 itens checklist)","Compras/Manutenções","Direção"],
+["Conveniência","Mix","Varejo / Mix"],
+["Componentes de Café","Mix","Varejo / Mix"],
+["Produtos Automotivos","Mix","Compras"],
+["Material de Consumo","Mix","Operação"],
+["Material de Pista","Mix","Operação"],
+["Sorvetes e Picolés","Mix","Varejo / Mix"],
+["Food","Mix","Varejo / Mix"],
+["Gelo (Freezer)","Mix","Compras"],
+["Tabaco (Expositor)","Mix","Compras"],
+["Pepsico","Mix","Compras"],
+["Material de limpeza loja (DML: Vassouras, Rodo, Detergente, MOP, panos)","Mix","Compras"],
+["Material Pista (Marreca, Rodo Pista, Rodo Para-brisa, Mangueira água)","Mix","Compras"],
+["Tambor de Graxa (Rodovias)","Mix","Compras"],
+["Bicos, mangueiras, rodilhas","Mix","Operação"],
+["Pedido de Filtros","Mix","Compras"],
+["Pedido Palheta","Mix","Compras"],
+["Etiquetas de preços","Mix","Varejo / Mix"],
+["Comandas","Mix","Operação"],
+["Limpeza","Preparação da Loja","Operação"],
+["Recebimento de produtos","Preparação da Loja","Operação"],
+["Montar exposição","Preparação da Loja","Operação"],
+["Testar equipamentos","Preparação da Loja","Operação"],
+["Preparar food","Preparação da Loja","Operação"],
+["Ações de abertura, promoção, ofertas especiais, brindes","MKT","Marketing"],
+["Definição de material de preço","MKT","Marketing"],
+["Sandrito","MKT","Marketing"],
+["Arco de Balão","MKT","Marketing"],
+["Balão do Sander","MKT","Marketing"],
+["Rádio","MKT","Marketing"],
+["Ações APP Sander","MKT","Marketing"],
+["Adesivos banheiro","MKT","Marketing"],
+["Adesivos NF Gaúcha","MKT","Marketing"],
+["Manual do Consumidor","MKT","Marketing"],
+["Sentinela, outdoor, adesivos, imagens, fachadas, cavaletes, totens, placa ANP, adesivo coluna, faixa vidros","MKT","Marketing"],
+["Informações portas (Não fume...)","MKT","Marketing"],
+["Placas de estacionamento","MKT","Marketing"],
+["Placa de Aproximação (outdoor)","MKT","Marketing"],
+["Livro do ministério do trabalho (RH)","MKT","RH"],
+["Ficha de controles de EPIs","MKT","RH"],
+["Carta Frete","Meios de Pagamento","Faturamento"],
+["Encaminhar cadastro das operadoras de cartão crédito","Meios de Pagamento","Faturamento"],
+["SAQUEPAGUE","Meios de Pagamento","Faturamento"],
+["Contas Bancos","Meios de Pagamento","Faturamento"],
+["Cadastramento dos portais de carta frete","Meios de Pagamento","Faturamento"],
+["Cadastro de Clientes Adquiridos (CNPJ, Cidade, Preço, Meios de Pagamento)","Comercial","Comercial"],
+["Visitação dos principais clientes","Comercial","Comercial"],
+["Visitação Prefeitura/Licitação","Comercial","Comercial"],
+["Mapeamento de concorrentes e definição de preços","Comercial","Comercial"],
+["Verificar clientes de outro posto","Comercial","Comercial"]
+];
+
+/* ================= STATE ================= */
+var DATA = { postos: [] };
+var STATE = { tela:'lista', postoId:null, setorAtual:null };
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+function loadData(){
+  try{
+    var raw = localStorage.getItem('ab_data');
+    DATA = raw ? JSON.parse(raw) : { postos: [] };
+  }catch(e){ DATA = { postos: [] }; }
+}
+function saveData(){
+  localStorage.setItem('ab_data', JSON.stringify(DATA));
+  syncPush();
+}
+
+function criarPosto(nome, bandeira, dataAbertura){
+  var posto = {
+    id: uid(),
+    nome: nome,
+    bandeira: bandeira,
+    dataAbertura: dataAbertura,
+    criadoEm: Date.now(),
+    itens: ITEMS_TEMPLATE.map(function(t){
+      return { id: uid(), item:t[0], fase:t[1], setor:t[2], responsavel:'', status:'Pendente', observacao:'', historico:[] };
+    })
+  };
+  DATA.postos.push(posto);
+  saveData();
+  return posto.id;
+}
+
+function getPosto(id){ return DATA.postos.find(function(p){ return p.id===id; }); }
+
+/* ================= RENDER ================= */
+var app = document.getElementById('app');
+var btnBack = document.getElementById('btn-back');
+var btnNovoPosto = document.getElementById('btn-novo-posto');
+var hdrTitle = document.getElementById('hdr-title');
+var hdrSub = document.getElementById('hdr-sub');
+
+function render(){
+  if(STATE.tela==='lista'){ renderListaPostos(); }
+  else if(STATE.tela==='dashboard'){ renderDashboard(); }
+  else if(STATE.tela==='setor'){ renderSetor(); }
+}
+
+function contarStatus(itens){
+  var c = {'Pendente':0,'Em Andamento':0,'Concluído':0,'N/A':0};
+  itens.forEach(function(i){ c[i.status] = (c[i.status]||0)+1; });
+  return c;
+}
+
+function renderListaPostos(){
+  hdrTitle.textContent = 'Abertura de Postos';
+  hdrSub.textContent = 'Rede Sander — selecione um posto ou crie um novo';
+  btnBack.style.display = 'none';
+  btnNovoPosto.style.display = 'block';
+
+  var html = '';
+  if(DATA.postos.length===0){
+    html += '<div class="empty-state card">Nenhum posto em abertura ainda.<br>Toque em <b>+ Novo Posto</b> para começar o checklist.</div>';
+  } else {
+    html += '<div class="posto-grid">';
+    DATA.postos.slice().reverse().forEach(function(p){
+      var c = contarStatus(p.itens);
+      var total = p.itens.length;
+      var pct = total ? Math.round((c['Concluído']/total)*100) : 0;
+      html += '<div class="card posto-card" data-id="'+p.id+'">'
+        + '<h3>'+escapeHtml(p.nome)+'</h3>'
+        + '<div class="meta">'+escapeHtml(p.bandeira||'—')+' · abertura '+formatDate(p.dataAbertura)+'</div>'
+        + '<div class="progress-bar">'
+          + '<div style="width:'+(c['Concluído']/total*100)+'%;background:var(--ok)"></div>'
+          + '<div style="width:'+(c['Em Andamento']/total*100)+'%;background:var(--andamento)"></div>'
+          + '<div style="width:'+(c['Pendente']/total*100)+'%;background:var(--pendente)"></div>'
+        + '</div>'
+        + '<div class="pct">'+pct+'% concluído · '+c['Pendente']+' pendências</div>'
+        + '</div>';
+    });
+    html += '</div>';
+  }
+  html += '<div class="sync-note">☁️ <span id="sync-status">sincronização não configurada</span> · <a href="#" id="link-config" style="color:var(--pri2)">configurar</a></div>';
+  app.innerHTML = html;
+
+  document.querySelectorAll('.posto-card').forEach(function(el){
+    el.addEventListener('click', function(){
+      STATE.postoId = el.getAttribute('data-id');
+      STATE.tela = 'dashboard';
+      render();
+    });
+  });
+  var linkCfg = document.getElementById('link-config');
+  if(linkCfg) linkCfg.addEventListener('click', function(e){ e.preventDefault(); abrirConfig(); });
+  atualizarSyncStatus();
+}
+
+function renderDashboard(){
+  var posto = getPosto(STATE.postoId);
+  if(!posto){ STATE.tela='lista'; return render(); }
+  hdrTitle.textContent = posto.nome;
+  hdrSub.textContent = (posto.bandeira||'') + ' · abertura ' + formatDate(posto.dataAbertura);
+  btnBack.style.display = 'inline-block';
+  btnNovoPosto.style.display = 'none';
+
+  var c = contarStatus(posto.itens);
+  var pendTotal = c['Pendente'] + c['Em Andamento'];
+
+  var html = '<div class="summary-bar">'
+    + '<div class="summary-tile tile-ok"><div class="num">'+c['Concluído']+'</div><div class="lbl">✅ OK</div></div>'
+    + '<div class="summary-tile tile-pend"><div class="num">'+pendTotal+'</div><div class="lbl">⏳ Pendências</div></div>'
+    + '<div class="summary-tile tile-and"><div class="num">'+c['Em Andamento']+'</div><div class="lbl">Em andamento</div></div>'
+    + '<div class="summary-tile tile-na"><div class="num">'+c['N/A']+'</div><div class="lbl">N/A</div></div>'
+    + '</div>';
+
+  html += '<div class="setor-grid">';
+  SETORES.forEach(function(s){
+    var itensSetor = posto.itens.filter(function(i){ return i.setor===s.key; });
+    var cs = contarStatus(itensSetor);
+    var pend = cs['Pendente'] + cs['Em Andamento'];
+    html += '<div class="card setor-card" data-setor="'+escapeAttr(s.key)+'">'
+      + (pend>0 ? '<div class="badge-pend">'+pend+'</div>' : '<div class="badge-pend badge-zero">✓</div>')
+      + '<div class="icon">'+s.icone+'</div>'
+      + '<h4>'+s.key+'</h4>'
+      + '<div class="total">'+itensSetor.length+' itens · '+cs['Concluído']+' ok</div>'
+      + '</div>';
+  });
+  html += '</div>';
+  app.innerHTML = html;
+
+  document.querySelectorAll('.setor-card').forEach(function(el){
+    el.addEventListener('click', function(){
+      STATE.setorAtual = el.getAttribute('data-setor');
+      STATE.tela = 'setor';
+      render();
+    });
+  });
+}
+
+var filtroStatus = 'todos';
+
+function renderSetor(){
+  var posto = getPosto(STATE.postoId);
+  if(!posto){ STATE.tela='lista'; return render(); }
+  var setorInfo = SETORES.find(function(s){ return s.key===STATE.setorAtual; });
+  hdrTitle.textContent = (setorInfo?setorInfo.icone+' ':'') + STATE.setorAtual;
+  hdrSub.textContent = posto.nome;
+  btnBack.style.display = 'inline-block';
+  btnNovoPosto.style.display = 'none';
+
+  var itens = posto.itens.filter(function(i){ return i.setor===STATE.setorAtual; });
+  var itensFiltrados = filtroStatus==='todos' ? itens : itens.filter(function(i){ return i.status===filtroStatus; });
+
+  var html = '<div class="card">';
+  html += '<div class="filter-chips">';
+  ['todos'].concat(STATUS_LIST).forEach(function(f){
+    html += '<div class="chip'+(filtroStatus===f?' active':'')+'" data-f="'+escapeAttr(f)+'">'+(f==='todos'?'Todos ('+itens.length+')':f+' ('+itens.filter(function(i){return i.status===f;}).length+')')+'</div>';
+  });
+  html += '</div>';
+  html += '<button class="btn btn-outline btn-sm" id="btn-add-item" style="margin-bottom:14px">+ Adicionar pergunta</button>';
+
+  if(itensFiltrados.length===0){
+    html += '<div class="empty-state">Nenhum item com esse filtro.</div>';
+  }
+
+  itensFiltrados.forEach(function(item){
+    html += '<div class="item-row" data-item="'+item.id+'">'
+      + '<div class="item-title">'+escapeHtml(item.item)+'</div>'
+      + '<div class="item-fase">'+escapeHtml(item.fase)+'</div>'
+      + '<div class="item-controls">'
+        + '<select class="status-select ' + statusClass(item.status) + '" data-field="status">'
+          + STATUS_LIST.map(function(s){ return '<option value="'+s+'"'+(s===item.status?' selected':'')+'>'+s+'</option>'; }).join('')
+        + '</select>'
+        + '<input type="text" class="responsavel" data-field="responsavel" placeholder="Responsável" value="'+escapeAttr(item.responsavel)+'">'
+        + '<button class="btn btn-sm transfer-btn" data-action="toggle-transfer">🔀 Transferir</button>'
+      + '</div>'
+      + '<textarea class="obs" data-field="observacao" placeholder="Observação...">'+escapeHtml(item.observacao)+'</textarea>'
+      + '<div class="transfer-row" id="transfer-'+item.id+'">'
+        + '<select class="transfer-select">'
+          + SETORES.filter(function(s){return s.key!==item.setor;}).map(function(s){ return '<option value="'+escapeAttr(s.key)+'">'+s.icone+' '+s.key+'</option>'; }).join('')
+        + '</select>'
+        + '<button class="btn btn-sm" data-action="confirmar-transfer">Confirmar</button>'
+      + '</div>'
+      + (item.historico.length ? '<div class="transfer-hist">🔀 '+item.historico.map(function(h){ return escapeHtml(h.de)+' → '+escapeHtml(h.para)+' ('+formatDateTime(h.quando)+')'; }).join(' · ')+'</div>' : '')
+      + '</div>';
+  });
+  html += '</div>';
+  app.innerHTML = html;
+
+  document.querySelectorAll('.chip').forEach(function(el){
+    el.addEventListener('click', function(){ filtroStatus = el.getAttribute('data-f'); render(); });
+  });
+
+  document.getElementById('btn-add-item').addEventListener('click', abrirNovoItem);
+
+  document.querySelectorAll('.item-row').forEach(function(row){
+    var itemId = row.getAttribute('data-item');
+    row.querySelectorAll('[data-field]').forEach(function(el){
+      var evt = (el.tagName==='SELECT') ? 'change' : 'blur';
+      el.addEventListener(evt, function(){
+        var posto = getPosto(STATE.postoId);
+        var item = posto.itens.find(function(i){ return i.id===itemId; });
+        var field = el.getAttribute('data-field');
+        item[field] = el.value;
+        saveData();
+        if(field==='status') render();
+      });
+    });
+    var toggleBtn = row.querySelector('[data-action="toggle-transfer"]');
+    toggleBtn.addEventListener('click', function(){
+      document.getElementById('transfer-'+itemId).classList.toggle('open');
+    });
+    var confirmBtn = row.querySelector('[data-action="confirmar-transfer"]');
+    confirmBtn.addEventListener('click', function(){
+      var novoSetor = row.querySelector('.transfer-select').value;
+      var posto = getPosto(STATE.postoId);
+      var item = posto.itens.find(function(i){ return i.id===itemId; });
+      item.historico.push({ de:item.setor, para:novoSetor, quando:Date.now() });
+      item.setor = novoSetor;
+      saveData();
+      render();
+    });
+  });
+}
+
+/* ================= HELPERS ================= */
+function escapeHtml(s){ return (s||'').replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function escapeAttr(s){ return escapeHtml(s); }
+function formatDate(d){
+  if(!d) return 'sem data';
+  var parts = String(d).split('-');
+  if(parts.length===3) return parts[2]+'/'+parts[1]+'/'+parts[0];
+  return d;
+}
+function formatDateTime(ts){
+  var d = new Date(ts);
+  return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+
+/* ================= NAV ================= */
+btnBack.addEventListener('click', function(){
+  if(STATE.tela==='setor'){ STATE.tela='dashboard'; filtroStatus='todos'; }
+  else if(STATE.tela==='dashboard'){ STATE.tela='lista'; STATE.postoId=null; }
+  render();
+});
+
+/* ================= MODAL NOVO POSTO ================= */
+var modalNovoPosto = document.getElementById('modal-novo-posto');
+btnNovoPosto.addEventListener('click', function(){
+  document.getElementById('np-nome').value='';
+  document.getElementById('np-bandeira').value='';
+  document.getElementById('np-data').value='';
+  modalNovoPosto.classList.add('open');
+});
+document.getElementById('np-cancel').addEventListener('click', function(){ modalNovoPosto.classList.remove('open'); });
+document.getElementById('np-confirmar').addEventListener('click', function(){
+  var nome = document.getElementById('np-nome').value.trim();
+  if(!nome){ alert('Digite o nome do posto.'); return; }
+  var bandeira = document.getElementById('np-bandeira').value.trim();
+  var dataAbertura = document.getElementById('np-data').value;
+  var id = criarPosto(nome, bandeira, dataAbertura);
+  modalNovoPosto.classList.remove('open');
+  STATE.postoId = id;
+  STATE.tela = 'dashboard';
+  render();
+});
+
+/* ================= MODAL CONFIG SYNC ================= */
+var modalConfig = document.getElementById('modal-config');
+function abrirConfig(){
+  document.getElementById('cfg-url').value = getScriptUrl();
+  modalConfig.classList.add('open');
+}
+document.getElementById('cfg-cancel').addEventListener('click', function(){ modalConfig.classList.remove('open'); });
+document.getElementById('cfg-salvar').addEventListener('click', function(){
+  var url = document.getElementById('cfg-url').value.trim();
+  localStorage.setItem('ab_script_url', url);
+  modalConfig.classList.remove('open');
+  atualizarSyncStatus();
+  syncPull();
+});
+
+/* ================= MODAL NOVA PERGUNTA ================= */
+var modalNovoItem = document.getElementById('modal-novo-item');
+function abrirNovoItem(){
+  document.getElementById('ni-texto').value = '';
+  modalNovoItem.classList.add('open');
+}
+document.getElementById('ni-cancel').addEventListener('click', function(){ modalNovoItem.classList.remove('open'); });
+document.getElementById('ni-confirmar').addEventListener('click', function(){
+  var texto = document.getElementById('ni-texto').value.trim();
+  if(!texto){ alert('Digite a pergunta/item.'); return; }
+  var posto = getPosto(STATE.postoId);
+  posto.itens.push({
+    id: uid(), item: texto, fase: 'Adicional', setor: STATE.setorAtual,
+    responsavel:'', status:'Pendente', observacao:'', historico:[]
+  });
+  saveData();
+  modalNovoItem.classList.remove('open');
+  render();
+});
+
+function atualizarSyncStatus(){
+  var el = document.getElementById('sync-status');
+  if(!el) return;
+  el.textContent = getScriptUrl() ? 'sincronização ativa' : 'sincronização não configurada';
+}
+
+/* ================= SYNC (Google Sheets via Apps Script) ================= */
+var syncing = false;
+function syncPush(){
+  var url = getScriptUrl();
+  if(!url) return;
+  fetch(url, {
+    method:'POST',
+    body: JSON.stringify({ postos: DATA.postos })
+  }).catch(function(){ /* falha silenciosa, dado já está salvo local */ });
+}
+
+function syncPull(){
+  var url = getScriptUrl();
+  if(!url || syncing) return;
+  syncing = true;
+  fetch(url).then(function(r){ return r.json(); }).then(function(resp){
+    syncing = false;
+    if(!resp || !resp.ok || !resp.postos) return;
+    // Merge simples: nuvem é a fonte da verdade quando não há dado local ainda;
+    // depois disso, mescla por ID de posto/item (local sempre vence em caso de edição não sincronizada).
+    var remotos = resp.postos;
+    remotos.forEach(function(rp){
+      var local = getPosto(rp.id);
+      if(!local){
+        DATA.postos.push(rp);
+      } else {
+        rp.itens.forEach(function(ri){
+          var li = local.itens.find(function(i){ return i.id===ri.id; });
+          if(!li) local.itens.push(ri);
+        });
+      }
+    });
+    localStorage.setItem('ab_data', JSON.stringify(DATA));
+    render();
+  }).catch(function(){ syncing = false; });
+}
+
+/* ================= INIT ================= */
+loadData();
+render();
+syncPull();
+setInterval(syncPull, 120000);
+</script>
+</body>
+</html>

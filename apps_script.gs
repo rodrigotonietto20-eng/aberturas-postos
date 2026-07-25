@@ -1,0 +1,129 @@
+/**
+ * Backend do app "Abertura de Postos — Rede Sander".
+ *
+ * COMO USAR:
+ * 1. Crie uma nova planilha Google Sheets (separada das planilhas do CRM e do Horas Extras).
+ * 2. Crie duas abas com esses nomes exatos:
+ *    - "Postos"  -> cabeçalho linha 1: ID | Nome | Bandeira | DataAbertura | CriadoEm
+ *    - "Itens"   -> cabeçalho linha 1: ID | PostoID | Item | Fase | Setor | Responsavel | Status | Observacao | Historico
+ * 3. Menu Extensões -> Apps Script. Apague o conteúdo padrão e cole este arquivo inteiro.
+ * 4. Menu Implantar -> Nova implantação -> tipo "App da Web".
+ *    - Executar como: Eu (sua conta)
+ *    - Quem pode acessar: Qualquer pessoa
+ * 5. Copie a URL gerada (termina em /exec) e cole no app: botão "configurar" no rodapé da
+ *    lista de postos, ou direto na constante SCRIPT_URL_DEFAULT no topo do index.html.
+ * 6. Sempre que reimplantar como NOVA implantação, a URL muda — atualize de novo.
+ *    Reimplantar como "nova versão" na MESMA implantação não muda a URL.
+ *
+ * Mesmo padrão já validado no CRM de Visitas e no Horas Extras: mapa explícito
+ * cabeçalho<->campo (CAMPOS_POSTO / CAMPOS_ITEM) em vez de comparar texto do cabeçalho
+ * direto com o nome da propriedade — resistente a reformatação manual da planilha.
+ */
+
+var CAMPOS_POSTO = [
+  {header:'ID',           key:'id'},
+  {header:'Nome',         key:'nome'},
+  {header:'Bandeira',     key:'bandeira'},
+  {header:'DataAbertura', key:'dataAbertura'},
+  {header:'CriadoEm',     key:'criadoEm', num:true}
+];
+
+var CAMPOS_ITEM = [
+  {header:'ID',           key:'id'},
+  {header:'PostoID',      key:'postoId'},
+  {header:'Item',         key:'item'},
+  {header:'Fase',         key:'fase'},
+  {header:'Setor',        key:'setor'},
+  {header:'Responsavel',  key:'responsavel'},
+  {header:'Status',       key:'status'},
+  {header:'Observacao',   key:'observacao'},
+  {header:'Historico',    key:'historico', json:true}
+];
+
+function getSheetPostos(){ return SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Postos'); }
+function getSheetItens(){ return SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Itens'); }
+
+function lerLinhas(sheet, campos){
+  var rows = sheet.getDataRange().getValues();
+  var headers = rows[0];
+  var out = [];
+  for(var i=1;i<rows.length;i++){
+    var row = rows[i];
+    if(!row[0]) continue; // sem ID, linha vazia
+    var obj = {};
+    campos.forEach(function(c, idx){
+      var col = headers.indexOf(c.header);
+      if(col<0) col = idx; // fallback posicional se o cabeçalho estiver diferente/em branco
+      var val = row[col];
+      if(c.json){ try{ val = val ? JSON.parse(val) : []; }catch(err){ val = []; } }
+      else if(c.num){ val = val===''||val==null ? 0 : Number(val); }
+      obj[c.key] = val;
+    });
+    out.push(obj);
+  }
+  return out;
+}
+
+function doGet(e){
+  var postos = lerLinhas(getSheetPostos(), CAMPOS_POSTO);
+  var itens = lerLinhas(getSheetItens(), CAMPOS_ITEM);
+
+  var itensPorPosto = {};
+  itens.forEach(function(it){
+    if(!itensPorPosto[it.postoId]) itensPorPosto[it.postoId] = [];
+    delete it.postoId;
+    itensPorPosto[it.postoId].push(it);
+  });
+  postos.forEach(function(p){ p.itens = itensPorPosto[p.id] || []; });
+
+  return ContentService.createTextOutput(JSON.stringify({ok:true, postos:postos}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function upsert(sheet, campos, registros, idKey){
+  if(!registros.length) return;
+  var headers = sheet.getDataRange().getValues()[0];
+  var idsNovos = {};
+  registros.forEach(function(r){ idsNovos[r[idKey]] = true; });
+
+  var data = sheet.getDataRange().getValues();
+  var idCol = headers.indexOf(campos[0].header);
+  if(idCol<0) idCol = 0;
+  for(var i=data.length-1;i>=1;i--){
+    if(idsNovos[data[i][idCol]]) sheet.deleteRow(i+1);
+  }
+
+  var linhas = registros.map(function(r){
+    return campos.map(function(c){
+      var val = r[c.key];
+      if(c.json) return JSON.stringify(val||[]);
+      return val==null ? '' : val;
+    });
+  });
+  sheet.getRange(sheet.getLastRow()+1, 1, linhas.length, campos.length).setValues(linhas);
+}
+
+function doPost(e){
+  var body = JSON.parse(e.postData.contents);
+  var postos = body.postos || [];
+  if(!postos.length) return ContentService.createTextOutput(JSON.stringify({ok:true}));
+
+  var postosSemItens = postos.map(function(p){
+    return {id:p.id, nome:p.nome, bandeira:p.bandeira, dataAbertura:p.dataAbertura, criadoEm:p.criadoEm};
+  });
+  upsert(getSheetPostos(), CAMPOS_POSTO, postosSemItens, 'id');
+
+  var todosItens = [];
+  postos.forEach(function(p){
+    (p.itens||[]).forEach(function(it){
+      todosItens.push({
+        id:it.id, postoId:p.id, item:it.item, fase:it.fase, setor:it.setor,
+        responsavel:it.responsavel, status:it.status, observacao:it.observacao, historico:it.historico
+      });
+    });
+  });
+  upsert(getSheetItens(), CAMPOS_ITEM, todosItens, 'id');
+
+  return ContentService.createTextOutput(JSON.stringify({ok:true}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
