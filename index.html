@@ -62,8 +62,11 @@ body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;backgro
 .badge-zero{background:var(--ok);}
 
 /* ===== Setor detail ===== */
-.item-row{border-bottom:1px solid var(--border);padding:14px 0;}
+.item-row{border-bottom:1px solid var(--border);padding:14px 0 14px 11px;border-left:3px solid transparent;transition:background .2s;}
+.item-row.done{background:var(--ok-bg);border-left-color:var(--ok);}
 .item-row:last-child{border-bottom:none;}
+.geral-group-header{margin:20px 0 8px;padding-bottom:6px;border-bottom:2px solid var(--border);font-weight:700;color:var(--pri-deep);font-size:14.5px;}
+.geral-group-header:first-child{margin-top:0;}
 .item-title{font-weight:600;font-size:14.5px;margin-bottom:2px;}
 .item-fase{font-size:11px;color:var(--muted);margin-bottom:8px;}
 .item-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;}
@@ -73,7 +76,7 @@ select, input[type=text], textarea{
 .status-select{font-weight:700;}
 .status-Pendente{color:var(--pendente);background:var(--pendente-bg);border-color:var(--pendente);}
 .status-Em_Andamento{color:var(--andamento);background:var(--andamento-bg);border-color:var(--andamento);}
-.status-Concluído{color:var(--ok);background:var(--ok-bg);border-color:var(--ok);}
+.status-Concluido{color:var(--ok);background:var(--ok-bg);border-color:var(--ok);}
 .status-N_A{color:var(--na);background:var(--na-bg);border-color:var(--na);}
 input.responsavel{width:150px;}
 textarea.obs{width:100%;min-height:34px;resize:vertical;margin-top:4px;}
@@ -161,7 +164,7 @@ var SCRIPT_URL_DEFAULT = 'https://script.google.com/macros/s/AKfycbwHjPGagJY9-Vp
 function getScriptUrl(){ return localStorage.getItem('ab_script_url') || SCRIPT_URL_DEFAULT; }
 
 var STATUS_LIST = ['Pendente','Em Andamento','Concluído','N/A'];
-function statusClass(s){ return 'status-' + s.replace(/\s/g,'_').replace('í','i'); }
+function statusClass(s){ return 'status-' + s.replace(/[\s\/]/g,'_').replace(/í/g,'i'); }
 
 var SETORES = [
   {key:'Direção', icone:'🧭'},
@@ -397,6 +400,7 @@ function render(){
   if(STATE.tela==='lista'){ renderListaPostos(); }
   else if(STATE.tela==='dashboard'){ renderDashboard(); }
   else if(STATE.tela==='setor'){ renderSetor(); }
+  else if(STATE.tela==='geral'){ renderGeral(); }
 }
 
 function contarStatus(itens){
@@ -466,6 +470,8 @@ function renderDashboard(){
     + '<div class="summary-tile tile-na"><div class="num">'+c['N/A']+'</div><div class="lbl">N/A</div></div>'
     + '</div>';
 
+  html += '<button class="btn btn-outline btn-block" id="btn-ver-geral" style="margin-bottom:16px">📋 Ver Visão Geral de Todas as Perguntas</button>';
+
   html += '<div class="setor-grid">';
   SETORES.forEach(function(s){
     var itensSetor = posto.itens.filter(function(i){ return i.setor===s.key; });
@@ -488,9 +494,81 @@ function renderDashboard(){
       render();
     });
   });
+
+  document.getElementById('btn-ver-geral').addEventListener('click', function(){
+    STATE.tela = 'geral';
+    render();
+  });
 }
 
 var filtroStatus = 'todos';
+var filtroStatusGeral = 'todos';
+
+function itemRowHtml(item){
+  return '<div class="item-row'+(item.status==='Concluído'?' done':'')+'" data-item="'+item.id+'">'
+    + '<div class="item-title">'+escapeHtml(item.item)+'</div>'
+    + '<div class="item-fase">'+escapeHtml(item.fase)+'</div>'
+    + '<div class="item-controls">'
+      + '<select class="status-select ' + statusClass(item.status) + '" data-field="status">'
+        + STATUS_LIST.map(function(s){ return '<option value="'+s+'"'+(s===item.status?' selected':'')+'>'+s+'</option>'; }).join('')
+      + '</select>'
+      + '<input type="text" class="responsavel" data-field="responsavel" placeholder="Responsável" value="'+escapeAttr(item.responsavel)+'">'
+      + '<button class="btn btn-sm transfer-btn" data-action="toggle-transfer">🔀 Transferir</button>'
+    + '</div>'
+    + '<textarea class="obs" data-field="observacao" placeholder="Observação...">'+escapeHtml(item.observacao)+'</textarea>'
+    + '<div class="transfer-row" id="transfer-'+item.id+'">'
+      + '<select class="transfer-select">'
+        + SETORES.filter(function(s){return s.key!==item.setor;}).map(function(s){ return '<option value="'+escapeAttr(s.key)+'">'+s.icone+' '+s.key+'</option>'; }).join('')
+      + '</select>'
+      + '<button class="btn btn-sm" data-action="confirmar-transfer">Confirmar</button>'
+    + '</div>'
+    + (item.historico.length ? '<div class="transfer-hist">🔀 '+item.historico.map(function(h){ return escapeHtml(h.de)+' → '+escapeHtml(h.para)+' ('+formatDateTime(h.quando)+')'; }).join(' · ')+'</div>' : '')
+    + '</div>';
+}
+
+function atualizarContadoresChips(itens){
+  document.querySelectorAll('.chip').forEach(function(chipEl){
+    var f = chipEl.getAttribute('data-f');
+    var count = f==='todos' ? itens.length : itens.filter(function(i){return i.status===f;}).length;
+    chipEl.textContent = (f==='todos'?'Todos':f) + ' (' + count + ')';
+  });
+}
+
+function wireItemRow(row, onStatusChange){
+  var itemId = row.getAttribute('data-item');
+  row.querySelectorAll('[data-field]').forEach(function(el){
+    var evt = (el.tagName==='SELECT') ? 'change' : 'blur';
+    el.addEventListener(evt, function(){
+      var posto = getPosto(STATE.postoId);
+      var item = posto.itens.find(function(i){ return i.id===itemId; });
+      var field = el.getAttribute('data-field');
+      item[field] = el.value;
+      saveData();
+      if(field==='status'){
+        // Atualiza só a cor/posição deste item em vez de recarregar a tela inteira —
+        // assim um item recém concluído continua visível (fica verde) mesmo com um
+        // filtro de status ativo, em vez de sumir da lista na hora.
+        el.className = 'status-select ' + statusClass(item.status);
+        row.classList.toggle('done', item.status==='Concluído');
+        if(onStatusChange) onStatusChange();
+      }
+    });
+  });
+  var toggleBtn = row.querySelector('[data-action="toggle-transfer"]');
+  toggleBtn.addEventListener('click', function(){
+    document.getElementById('transfer-'+itemId).classList.toggle('open');
+  });
+  var confirmBtn = row.querySelector('[data-action="confirmar-transfer"]');
+  confirmBtn.addEventListener('click', function(){
+    var novoSetor = row.querySelector('.transfer-select').value;
+    var posto = getPosto(STATE.postoId);
+    var item = posto.itens.find(function(i){ return i.id===itemId; });
+    item.historico.push({ de:item.setor, para:novoSetor, quando:Date.now() });
+    item.setor = novoSetor;
+    saveData();
+    render();
+  });
+}
 
 function renderSetor(){
   var posto = getPosto(STATE.postoId);
@@ -516,27 +594,7 @@ function renderSetor(){
     html += '<div class="empty-state">Nenhum item com esse filtro.</div>';
   }
 
-  itensFiltrados.forEach(function(item){
-    html += '<div class="item-row" data-item="'+item.id+'">'
-      + '<div class="item-title">'+escapeHtml(item.item)+'</div>'
-      + '<div class="item-fase">'+escapeHtml(item.fase)+'</div>'
-      + '<div class="item-controls">'
-        + '<select class="status-select ' + statusClass(item.status) + '" data-field="status">'
-          + STATUS_LIST.map(function(s){ return '<option value="'+s+'"'+(s===item.status?' selected':'')+'>'+s+'</option>'; }).join('')
-        + '</select>'
-        + '<input type="text" class="responsavel" data-field="responsavel" placeholder="Responsável" value="'+escapeAttr(item.responsavel)+'">'
-        + '<button class="btn btn-sm transfer-btn" data-action="toggle-transfer">🔀 Transferir</button>'
-      + '</div>'
-      + '<textarea class="obs" data-field="observacao" placeholder="Observação...">'+escapeHtml(item.observacao)+'</textarea>'
-      + '<div class="transfer-row" id="transfer-'+item.id+'">'
-        + '<select class="transfer-select">'
-          + SETORES.filter(function(s){return s.key!==item.setor;}).map(function(s){ return '<option value="'+escapeAttr(s.key)+'">'+s.icone+' '+s.key+'</option>'; }).join('')
-        + '</select>'
-        + '<button class="btn btn-sm" data-action="confirmar-transfer">Confirmar</button>'
-      + '</div>'
-      + (item.historico.length ? '<div class="transfer-hist">🔀 '+item.historico.map(function(h){ return escapeHtml(h.de)+' → '+escapeHtml(h.para)+' ('+formatDateTime(h.quando)+')'; }).join(' · ')+'</div>' : '')
-      + '</div>';
-  });
+  itensFiltrados.forEach(function(item){ html += itemRowHtml(item); });
   html += '</div>';
   app.innerHTML = html;
 
@@ -547,32 +605,49 @@ function renderSetor(){
   document.getElementById('btn-add-item').addEventListener('click', abrirNovoItem);
 
   document.querySelectorAll('.item-row').forEach(function(row){
-    var itemId = row.getAttribute('data-item');
-    row.querySelectorAll('[data-field]').forEach(function(el){
-      var evt = (el.tagName==='SELECT') ? 'change' : 'blur';
-      el.addEventListener(evt, function(){
-        var posto = getPosto(STATE.postoId);
-        var item = posto.itens.find(function(i){ return i.id===itemId; });
-        var field = el.getAttribute('data-field');
-        item[field] = el.value;
-        saveData();
-        if(field==='status') render();
-      });
-    });
-    var toggleBtn = row.querySelector('[data-action="toggle-transfer"]');
-    toggleBtn.addEventListener('click', function(){
-      document.getElementById('transfer-'+itemId).classList.toggle('open');
-    });
-    var confirmBtn = row.querySelector('[data-action="confirmar-transfer"]');
-    confirmBtn.addEventListener('click', function(){
-      var novoSetor = row.querySelector('.transfer-select').value;
-      var posto = getPosto(STATE.postoId);
-      var item = posto.itens.find(function(i){ return i.id===itemId; });
-      item.historico.push({ de:item.setor, para:novoSetor, quando:Date.now() });
-      item.setor = novoSetor;
-      saveData();
-      render();
-    });
+    wireItemRow(row, function(){ atualizarContadoresChips(itens); });
+  });
+}
+
+function renderGeral(){
+  var posto = getPosto(STATE.postoId);
+  if(!posto){ STATE.tela='lista'; return render(); }
+  hdrTitle.textContent = '📋 Visão Geral';
+  hdrSub.textContent = posto.nome + ' — todos os setores';
+  btnBack.style.display = 'inline-block';
+  btnNovoPosto.style.display = 'none';
+
+  var todosItens = posto.itens;
+
+  var html = '<div class="card">';
+  html += '<div class="filter-chips">';
+  ['todos'].concat(STATUS_LIST).forEach(function(f){
+    html += '<div class="chip'+(filtroStatusGeral===f?' active':'')+'" data-f="'+escapeAttr(f)+'">'+(f==='todos'?'Todos ('+todosItens.length+')':f+' ('+todosItens.filter(function(i){return i.status===f;}).length+')')+'</div>';
+  });
+  html += '</div>';
+
+  var algumGrupo = false;
+  SETORES.forEach(function(s){
+    var itensSetor = posto.itens.filter(function(i){ return i.setor===s.key; });
+    var itensFiltrados = filtroStatusGeral==='todos' ? itensSetor : itensSetor.filter(function(i){ return i.status===filtroStatusGeral; });
+    if(itensFiltrados.length===0) return;
+    algumGrupo = true;
+    html += '<div class="geral-group-header">'+s.icone+' '+s.key+' <span style="font-weight:400;color:var(--muted);font-size:12px;">('+itensFiltrados.length+')</span></div>';
+    itensFiltrados.forEach(function(item){ html += itemRowHtml(item); });
+  });
+  if(!algumGrupo){
+    html += '<div class="empty-state">Nenhum item com esse filtro.</div>';
+  }
+
+  html += '</div>';
+  app.innerHTML = html;
+
+  document.querySelectorAll('.chip').forEach(function(el){
+    el.addEventListener('click', function(){ filtroStatusGeral = el.getAttribute('data-f'); render(); });
+  });
+
+  document.querySelectorAll('.item-row').forEach(function(row){
+    wireItemRow(row, function(){ atualizarContadoresChips(todosItens); });
   });
 }
 
@@ -593,6 +668,7 @@ function formatDateTime(ts){
 /* ================= NAV ================= */
 btnBack.addEventListener('click', function(){
   if(STATE.tela==='setor'){ STATE.tela='dashboard'; filtroStatus='todos'; }
+  else if(STATE.tela==='geral'){ STATE.tela='dashboard'; filtroStatusGeral='todos'; }
   else if(STATE.tela==='dashboard'){ STATE.tela='lista'; STATE.postoId=null; }
   render();
 });
