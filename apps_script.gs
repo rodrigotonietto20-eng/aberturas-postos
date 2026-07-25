@@ -24,7 +24,7 @@ var CAMPOS_POSTO = [
   {header:'ID',           key:'id'},
   {header:'Nome',         key:'nome'},
   {header:'Bandeira',     key:'bandeira'},
-  {header:'DataAbertura', key:'dataAbertura'},
+  {header:'DataAbertura', key:'dataAbertura', date:true},
   {header:'CriadoEm',     key:'criadoEm', num:true}
 ];
 
@@ -57,6 +57,12 @@ function lerLinhas(sheet, campos){
       var val = row[col];
       if(c.json){ try{ val = val ? JSON.parse(val) : []; }catch(err){ val = []; } }
       else if(c.num){ val = val===''||val==null ? 0 : Number(val); }
+      else if(c.date && Object.prototype.toString.call(val)==='[object Date]'){
+        // O Sheets autoconverte a célula "DataAbertura" pra um valor de Data de verdade
+        // quando recebe uma string tipo "2026-07-29" — sem isso, getValues() devolve um
+        // objeto Date que serializa como "2026-07-29T03:00:00.000Z" na tela do app.
+        val = Utilities.formatDate(val, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+      }
       obj[c.key] = val;
     });
     out.push(obj);

@@ -185,6 +185,26 @@ var SETORES = [
   {key:'Comercial', icone:'🤝'}
 ];
 
+/* Responsável padrão por setor — baseado nos nomes que mais aparecem na planilha original.
+   Só um valor inicial: o campo "Responsável" de cada item continua editável (trocar ou
+   incluir mais um nome, ex: "Shana / Fulano") direto na tela do setor ou na Visão Geral. */
+var SETOR_RESPONSAVEL_DEFAULT = {
+  'Direção': 'Pablo',
+  'Contabilidade': 'Segalin / Pedro',
+  'Obras / Meio Ambiente': 'Shana',
+  'Logística': 'Mathias',
+  'Compras': 'Richard',
+  'Operação': 'Supervisor',
+  'Varejo / Mix': 'Douglas',
+  'Estoque / Auditoria': 'João',
+  'Pricing': 'Roberto / Renan',
+  'T.I': 'Luan',
+  'Marketing': 'Débora / Carine',
+  'RH': 'RH',
+  'Faturamento': 'Eloísa',
+  'Comercial': 'Rech'
+};
+
 /* item template: [texto, fase, setor] */
 var ITEMS_TEMPLATE = [
 ["horario da filial","Documentação","Direção"],
@@ -381,7 +401,7 @@ function criarPosto(nome, bandeira, dataAbertura){
     dataAbertura: dataAbertura,
     criadoEm: Date.now(),
     itens: ITEMS_TEMPLATE.map(function(t){
-      return { id: uid(), item:t[0], fase:t[1], setor:t[2], responsavel:'', status:'Pendente', observacao:'', historico:[] };
+      return { id: uid(), item:t[0], fase:t[1], setor:t[2], responsavel: SETOR_RESPONSAVEL_DEFAULT[t[2]] || '', status:'Pendente', observacao:'', historico:[] };
     })
   };
   DATA.postos.push(posto);
@@ -678,7 +698,9 @@ function escapeHtml(s){ return (s||'').replace(/[&<>"]/g, function(c){ return {'
 function escapeAttr(s){ return escapeHtml(s); }
 function formatDate(d){
   if(!d) return 'sem data';
-  var parts = String(d).split('-');
+  // Rede de segurança: se vier um timestamp ISO completo (bug de Data do Sheets),
+  // usa só os 10 primeiros caracteres (yyyy-MM-dd) antes de quebrar em partes.
+  var parts = String(d).slice(0,10).split('-');
   if(parts.length===3) return parts[2]+'/'+parts[1]+'/'+parts[0];
   return d;
 }
