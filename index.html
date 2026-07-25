@@ -33,9 +33,11 @@ body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;backgro
 
 /* ===== Lista de Postos ===== */
 .posto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:14px;}
-.posto-card{cursor:pointer;transition:transform .1s;}
+.posto-card{cursor:pointer;transition:transform .1s;position:relative;}
 .posto-card:active{transform:scale(.98);}
-.posto-card h3{margin:0 0 4px;font-size:16px;color:var(--pri-deep);}
+.posto-card h3{margin:0 0 4px;font-size:16px;color:var(--pri-deep);padding-right:26px;}
+.posto-del-btn{position:absolute;top:12px;right:12px;background:none;border:none;font-size:16px;cursor:pointer;color:var(--muted);padding:2px 6px;border-radius:6px;}
+.posto-del-btn:active{background:var(--pendente-bg);color:var(--pendente);}
 .posto-card .meta{font-size:12.5px;color:var(--muted);margin-bottom:10px;}
 .progress-bar{height:8px;border-radius:6px;background:var(--border);overflow:hidden;display:flex;}
 .progress-bar div{height:100%;}
@@ -389,6 +391,15 @@ function criarPosto(nome, bandeira, dataAbertura){
 
 function getPosto(id){ return DATA.postos.find(function(p){ return p.id===id; }); }
 
+function excluirPosto(id){
+  DATA.postos = DATA.postos.filter(function(p){ return p.id!==id; });
+  localStorage.setItem('ab_data', JSON.stringify(DATA));
+  var url = getScriptUrl();
+  if(url){
+    fetch(url, { method:'POST', body: JSON.stringify({excluirPostoId:id}) }).catch(function(){ /* falha silenciosa, já removido local */ });
+  }
+}
+
 /* ================= RENDER ================= */
 var app = document.getElementById('app');
 var btnBack = document.getElementById('btn-back');
@@ -425,6 +436,7 @@ function renderListaPostos(){
       var total = p.itens.length;
       var pct = total ? Math.round((c['Concluído']/total)*100) : 0;
       html += '<div class="card posto-card" data-id="'+p.id+'">'
+        + '<button class="posto-del-btn" data-action="excluir-posto" data-id="'+p.id+'" title="Excluir posto">🗑️</button>'
         + '<h3>'+escapeHtml(p.nome)+'</h3>'
         + '<div class="meta">'+escapeHtml(p.bandeira||'—')+' · abertura '+formatDate(p.dataAbertura)+'</div>'
         + '<div class="progress-bar">'
@@ -444,6 +456,16 @@ function renderListaPostos(){
     el.addEventListener('click', function(){
       STATE.postoId = el.getAttribute('data-id');
       STATE.tela = 'dashboard';
+      render();
+    });
+  });
+  document.querySelectorAll('[data-action="excluir-posto"]').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      var id = btn.getAttribute('data-id');
+      var posto = getPosto(id);
+      if(!confirm('Excluir "'+posto.nome+'" e todo o checklist dele? Essa ação não pode ser desfeita.')) return;
+      excluirPosto(id);
       render();
     });
   });

@@ -104,8 +104,24 @@ function upsert(sheet, campos, registros, idKey){
   sheet.getRange(sheet.getLastRow()+1, 1, linhas.length, campos.length).setValues(linhas);
 }
 
+function excluirPosto(postoId){
+  var sheetPostos = getSheetPostos();
+  var dataP = sheetPostos.getDataRange().getValues();
+  for(var i=dataP.length-1;i>=1;i--){ if(dataP[i][0]===postoId) sheetPostos.deleteRow(i+1); }
+
+  var sheetItens = getSheetItens();
+  var dataI = sheetItens.getDataRange().getValues();
+  for(var i=dataI.length-1;i>=1;i--){ if(dataI[i][1]===postoId) sheetItens.deleteRow(i+1); }
+}
+
 function doPost(e){
   var body = JSON.parse(e.postData.contents);
+
+  if(body.excluirPostoId){
+    excluirPosto(body.excluirPostoId);
+    return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
+  }
+
   var postos = body.postos || [];
   if(!postos.length) return ContentService.createTextOutput(JSON.stringify({ok:true}));
 
