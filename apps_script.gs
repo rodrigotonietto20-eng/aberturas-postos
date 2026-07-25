@@ -70,9 +70,10 @@ function doGet(e){
 
   var itensPorPosto = {};
   itens.forEach(function(it){
-    if(!itensPorPosto[it.postoId]) itensPorPosto[it.postoId] = [];
+    var pid = it.postoId;
+    if(!itensPorPosto[pid]) itensPorPosto[pid] = [];
     delete it.postoId;
-    itensPorPosto[it.postoId].push(it);
+    itensPorPosto[pid].push(it);
   });
   postos.forEach(function(p){ p.itens = itensPorPosto[p.id] || []; });
 
