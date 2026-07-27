@@ -90,6 +90,13 @@ textarea.obs{width:100%;min-height:34px;resize:vertical;margin-top:4px;}
 .transfer-row{margin-top:6px;display:none;gap:8px;align-items:center;}
 .transfer-row.open{display:flex;flex-wrap:wrap;}
 .transfer-hist{font-size:11px;color:var(--muted);margin-top:5px;}
+.anexo-btn{background:var(--pri-light);color:var(--pri2);border:1px solid var(--pri3);cursor:pointer;}
+.anexo-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.anexo-chip{display:inline-flex;align-items:center;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:3px 8px;font-size:12px;}
+.anexo-chip a{color:var(--pri2);text-decoration:none;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.anexo-del{border:none;background:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0 0 0 2px;line-height:1;}
+.anexo-del:hover{color:#c0392b;}
+.anexo-status{font-size:11px;color:var(--muted);margin-top:4px;}
 
 .filter-chips{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
 .chip{padding:6px 12px;border-radius:20px;font-size:12.5px;border:1.5px solid var(--border);background:#fff;cursor:pointer;color:var(--muted);}
@@ -405,7 +412,7 @@ function criarPosto(nome, bandeira, dataAbertura){
     dataAbertura: dataAbertura,
     criadoEm: Date.now(),
     itens: ITEMS_TEMPLATE.map(function(t){
-      return { id: uid(), item:t[0], fase:t[1], setor:t[2], responsavel: SETOR_RESPONSAVEL_DEFAULT[t[2]] || '', status:'Pendente', observacao:'', historico:[] };
+      return { id: uid(), item:t[0], fase:t[1], setor:t[2], responsavel: SETOR_RESPONSAVEL_DEFAULT[t[2]] || '', status:'Pendente', observacao:'', historico:[], anexos:[] };
     })
   };
   DATA.postos.push(posto);
@@ -551,6 +558,7 @@ var filtroStatus = 'todos';
 var filtroStatusGeral = 'todos';
 
 function itemRowHtml(item){
+  var anexos = item.anexos || [];
   return '<div class="item-row'+(item.status==='Concluído'?' done':'')+'" data-item="'+item.id+'">'
     + '<div class="item-title">'+escapeHtml(item.item)+'</div>'
     + '<div class="item-fase">'+escapeHtml(item.fase)+'</div>'
@@ -560,8 +568,14 @@ function itemRowHtml(item){
       + '</select>'
       + '<input type="text" class="responsavel" data-field="responsavel" placeholder="Responsável" value="'+escapeAttr(item.responsavel)+'">'
       + '<button class="btn btn-sm transfer-btn" data-action="toggle-transfer">🔀 Transferir</button>'
+      + '<label class="btn btn-sm anexo-btn">📎 Anexar<input type="file" class="anexo-input" data-action="anexar" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" hidden></label>'
     + '</div>'
     + '<textarea class="obs" data-field="observacao" placeholder="Observação...">'+escapeHtml(item.observacao)+'</textarea>'
+    + (anexos.length ? '<div class="anexo-list">'+anexos.map(function(a, idx){
+        return '<span class="anexo-chip"><a href="'+escapeAttr(a.url)+'" target="_blank" rel="noopener">📄 '+escapeHtml(a.nome)+'</a>'
+          + '<button class="anexo-del" data-action="remover-anexo" data-idx="'+idx+'" title="Remover anexo">✕</button></span>';
+      }).join('')+'</div>' : '')
+    + '<div class="anexo-status" id="anexo-status-'+item.id+'"></div>'
     + '<div class="transfer-row" id="transfer-'+item.id+'">'
       + '<select class="transfer-select">'
         + SETORES.filter(function(s){return s.key!==item.setor;}).map(function(s){ return '<option value="'+escapeAttr(s.key)+'">'+s.icone+' '+s.key+'</option>'; }).join('')
@@ -614,6 +628,50 @@ function wireItemRow(row, onStatusChange){
     saveData();
     render();
   });
+  var anexoInput = row.querySelector('[data-action="anexar"]');
+  if(anexoInput){
+    anexoInput.addEventListener('change', function(){
+      var file = anexoInput.files[0];
+      if(!file) return;
+      enviarAnexo(itemId, file, row);
+      anexoInput.value = '';
+    });
+  }
+  row.querySelectorAll('[data-action="remover-anexo"]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var idx = Number(btn.getAttribute('data-idx'));
+      var posto = getPosto(STATE.postoId);
+      var item = posto.itens.find(function(i){ return i.id===itemId; });
+      item.anexos.splice(idx, 1);
+      saveData();
+      render();
+    });
+  });
+}
+
+function enviarAnexo(itemId, file, row){
+  var url = getScriptUrl();
+  if(!url){ alert('Configure a sincronização antes de anexar arquivos.'); return; }
+  var statusEl = row.querySelector('.anexo-status');
+  if(statusEl) statusEl.textContent = 'Enviando '+file.name+'...';
+  var posto = getPosto(STATE.postoId);
+  var reader = new FileReader();
+  reader.onload = function(){
+    fetch(url, {
+      method:'POST',
+      body: JSON.stringify({ uploadAnexo: { postoId: posto.id, postoNome: posto.nome, nome: file.name, tipo: file.type, base64: reader.result } })
+    }).then(function(r){ return r.json(); }).then(function(resp){
+      if(!resp || !resp.ok || !resp.url) throw new Error('sem url');
+      var item = posto.itens.find(function(i){ return i.id===itemId; });
+      if(!item.anexos) item.anexos = [];
+      item.anexos.push({ nome:file.name, url:resp.url, tipo:file.type, quando:Date.now() });
+      saveData();
+      render();
+    }).catch(function(){
+      if(statusEl) statusEl.textContent = 'Falha ao enviar '+file.name+'. Tente novamente.';
+    });
+  };
+  reader.readAsDataURL(file);
 }
 
 function renderSetor(){
@@ -770,7 +828,7 @@ document.getElementById('ni-confirmar').addEventListener('click', function(){
   var posto = getPosto(STATE.postoId);
   posto.itens.push({
     id: uid(), item: texto, fase: 'Adicional', setor: STATE.setorAtual,
-    responsavel:'', status:'Pendente', observacao:'', historico:[]
+    responsavel:'', status:'Pendente', observacao:'', historico:[], anexos:[]
   });
   saveData();
   modalNovoItem.classList.remove('open');

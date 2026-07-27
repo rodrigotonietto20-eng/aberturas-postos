@@ -5,7 +5,9 @@
  * 1. Crie uma nova planilha Google Sheets (separada das planilhas do CRM e do Horas Extras).
  * 2. Crie duas abas com esses nomes exatos:
  *    - "Postos"  -> cabeçalho linha 1: ID | Nome | Bandeira | DataAbertura | CriadoEm
- *    - "Itens"   -> cabeçalho linha 1: ID | PostoID | Item | Fase | Setor | Responsavel | Status | Observacao | Historico
+ *    - "Itens"   -> cabeçalho linha 1: ID | PostoID | Item | Fase | Setor | Responsavel | Status | Observacao | Historico | Anexos
+ *    (se a aba "Itens" já existir sem a coluna "Anexos", adicione-a manualmente na planilha
+ *    antes de reimplantar — ela guarda um JSON com [{nome,url,tipo,quando}] por item)
  * 3. Menu Extensões -> Apps Script. Apague o conteúdo padrão e cole este arquivo inteiro.
  * 4. Menu Implantar -> Nova implantação -> tipo "App da Web".
  *    - Executar como: Eu (sua conta)
@@ -37,7 +39,8 @@ var CAMPOS_ITEM = [
   {header:'Responsavel',  key:'responsavel'},
   {header:'Status',       key:'status'},
   {header:'Observacao',   key:'observacao'},
-  {header:'Historico',    key:'historico', json:true}
+  {header:'Historico',    key:'historico', json:true},
+  {header:'Anexos',       key:'anexos', json:true}
 ];
 
 function getSheetPostos(){ return SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Postos'); }
@@ -120,8 +123,40 @@ function excluirPosto(postoId){
   for(var i=dataI.length-1;i>=1;i--){ if(dataI[i][1]===postoId) sheetItens.deleteRow(i+1); }
 }
 
+function getOrCreatePastaRaizAnexos(){
+  var nome = 'Abertura de Postos - Anexos';
+  var it = DriveApp.getFoldersByName(nome);
+  if(it.hasNext()) return it.next();
+  return DriveApp.createFolder(nome);
+}
+
+function getOrCreatePastaPosto(postoId, postoNome){
+  var raiz = getOrCreatePastaRaizAnexos();
+  var nomePasta = (postoNome||'Posto') + ' - ' + postoId;
+  var it = raiz.getFoldersByName(nomePasta);
+  if(it.hasNext()) return it.next();
+  return raiz.createFolder(nomePasta);
+}
+
+function uploadAnexo(payload){
+  var pasta = getOrCreatePastaPosto(payload.postoId, payload.postoNome);
+  var base64 = String(payload.base64||'');
+  var virgula = base64.indexOf(',');
+  if(virgula>=0) base64 = base64.substring(virgula+1);
+  var bytes = Utilities.base64Decode(base64);
+  var blob = Utilities.newBlob(bytes, payload.tipo || 'application/octet-stream', payload.nome || 'anexo');
+  var file = pasta.createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return file.getUrl();
+}
+
 function doPost(e){
   var body = JSON.parse(e.postData.contents);
+
+  if(body.uploadAnexo){
+    var url = uploadAnexo(body.uploadAnexo);
+    return ContentService.createTextOutput(JSON.stringify({ok:true, url:url})).setMimeType(ContentService.MimeType.JSON);
+  }
 
   if(body.excluirPostoId){
     excluirPosto(body.excluirPostoId);
@@ -141,7 +176,8 @@ function doPost(e){
     (p.itens||[]).forEach(function(it){
       todosItens.push({
         id:it.id, postoId:p.id, item:it.item, fase:it.fase, setor:it.setor,
-        responsavel:it.responsavel, status:it.status, observacao:it.observacao, historico:it.historico
+        responsavel:it.responsavel, status:it.status, observacao:it.observacao, historico:it.historico,
+        anexos:it.anexos
       });
     });
   });
