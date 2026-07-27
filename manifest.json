@@ -1,0 +1,11 @@
+{
+  "name": "Abertura de Postos — Rede Sander",
+  "short_name": "Aberturas",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fff8f0",
+  "theme_color": "#e65100",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
