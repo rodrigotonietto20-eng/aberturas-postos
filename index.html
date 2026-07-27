@@ -91,12 +91,22 @@ textarea.obs{width:100%;min-height:34px;resize:vertical;margin-top:4px;}
 .transfer-row.open{display:flex;flex-wrap:wrap;}
 .transfer-hist{font-size:11px;color:var(--muted);margin-top:5px;}
 .anexo-btn{background:var(--pri-light);color:var(--pri2);border:1px solid var(--pri3);cursor:pointer;}
+.edit-btn{background:#fff;color:var(--muted);border:1px solid var(--border);}
+.del-btn{background:var(--pendente-bg);color:var(--pendente);border:1px solid var(--pendente);}
 .anexo-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
 .anexo-chip{display:inline-flex;align-items:center;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:3px 8px;font-size:12px;}
 .anexo-chip a{color:var(--pri2);text-decoration:none;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .anexo-del{border:none;background:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0 0 0 2px;line-height:1;}
 .anexo-del:hover{color:#c0392b;}
 .anexo-status{font-size:11px;color:var(--muted);margin-top:4px;}
+.demandas-box{margin-top:8px;}
+.demandas-list{display:flex;flex-direction:column;gap:4px;margin-bottom:6px;}
+.demanda-row{display:flex;align-items:center;gap:6px;font-size:13px;background:var(--bg2);border-radius:8px;padding:5px 8px;}
+.demanda-row .demanda-txt{flex:1;}
+.demanda-del{border:none;background:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0 2px;line-height:1;}
+.demanda-del:hover{color:#c0392b;}
+.demanda-add{display:flex;gap:6px;}
+.demanda-add .demanda-input{flex:1;font-size:12.5px;padding:6px 8px;}
 
 .filter-chips{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
 .chip{padding:6px 12px;border-radius:20px;font-size:12.5px;border:1.5px solid var(--border);background:#fff;cursor:pointer;color:var(--muted);}
@@ -110,6 +120,13 @@ textarea.obs{width:100%;min-height:34px;resize:vertical;margin-top:4px;}
 .modal input, .modal select{width:100%;}
 .modal-actions{display:flex;gap:10px;margin-top:18px;}
 .sync-note{font-size:11.5px;color:var(--muted);text-align:center;margin-top:16px;}
+.setores-lista{max-height:280px;overflow-y:auto;border-top:1px solid var(--border);}
+.setor-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);}
+.setor-row input[type=text]{padding:6px 8px;font-size:13px;}
+.setor-row .sr-icone{width:44px;text-align:center;flex-shrink:0;}
+.setor-row .sr-nome{flex:1;min-width:0;}
+.setor-row .sr-salvar{flex-shrink:0;}
+.link-config{color:var(--pri2);}
 </style>
 </head>
 <body>
@@ -171,6 +188,23 @@ textarea.obs{width:100%;min-height:34px;resize:vertical;margin-top:4px;}
   </div>
 </div>
 
+<!-- Modal: gerenciar setores -->
+<div class="modal-bg" id="modal-setores">
+  <div class="modal" style="max-width:460px">
+    <h3>🗂️ Gerenciar Setores</h3>
+    <div id="setores-lista" class="setores-lista"></div>
+    <label style="margin-top:16px">+ Novo setor</label>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="ns-icone" placeholder="📌" style="width:56px;text-align:center">
+      <input type="text" id="ns-nome" placeholder="Nome do setor" style="flex:1">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-block" id="ns-fechar">Fechar</button>
+      <button class="btn btn-block" id="ns-adicionar">Adicionar setor</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ================= CONFIG ================= */
 var SCRIPT_URL_DEFAULT = 'https://script.google.com/macros/s/AKfycbwHjPGagJY9-VpIkJnTudXksxnYBXs-gyMLws7zIAfwdnHeef7GWWjejLYh8pEBeIkxIQ/exec';
@@ -179,12 +213,16 @@ function getScriptUrl(){ return localStorage.getItem('ab_script_url') || SCRIPT_
 var STATUS_LIST = ['Pendente','Em Andamento','Concluído','N/A'];
 function statusClass(s){ return 'status-' + s.replace(/[\s\/]/g,'_').replace(/í/g,'i'); }
 
-var SETORES = [
+/* Lista padrão de fábrica — a lista realmente usada (SETORES) é carregada de
+   localStorage/nuvem em loadSetores(), pra permitir incluir/editar setor sem mexer no
+   código (ver seção "Gerenciar Setores"). Isso aqui só serve de valor inicial/fallback. */
+var SETORES_DEFAULT = [
   {key:'Direção', icone:'🧭'},
   {key:'Contabilidade', icone:'📊'},
   {key:'Obras / Meio Ambiente', icone:'🏗️'},
   {key:'Logística', icone:'🚚'},
   {key:'Compras', icone:'🛒'},
+  {key:'CD', icone:'🏭'},
   {key:'Operação', icone:'⚙️'},
   {key:'Varejo / Mix', icone:'🏪'},
   {key:'Estoque / Auditoria', icone:'📦'},
@@ -195,6 +233,7 @@ var SETORES = [
   {key:'Faturamento', icone:'💳'},
   {key:'Comercial', icone:'🤝'}
 ];
+var SETORES = SETORES_DEFAULT.slice();
 
 /* Responsável padrão por setor — baseado nos nomes que mais aparecem na planilha original.
    Só um valor inicial: o campo "Responsável" de cada item continua editável (trocar ou
@@ -205,6 +244,7 @@ var SETOR_RESPONSAVEL_DEFAULT = {
   'Obras / Meio Ambiente': 'Shana',
   'Logística': 'Mathias',
   'Compras': 'Richard',
+  'CD': '',
   'Operação': 'Supervisor',
   'Varejo / Mix': 'Douglas',
   'Estoque / Auditoria': 'João',
@@ -216,9 +256,15 @@ var SETOR_RESPONSAVEL_DEFAULT = {
   'Comercial': 'Rech'
 };
 
-/* item template: [texto, fase, setor] */
+/* item template: [texto, fase, setor]
+   Reescrito em 2026-07-27 a partir da planilha "check list venancio aires" (posto real
+   "carazinho", anexada pelo usuário) — substitui por completo a lista anterior de 167
+   itens. Só afeta postos criados a partir de agora; postos já existentes mantêm os itens
+   que já tinham (cada um guarda cópia própria). Mudança pedida pelo usuário: os itens que
+   a planilha marca "compras/cd" (materiais que passam pelo Centro de Distribuição) foram
+   separados do setor Compras para o novo setor CD. */
 var ITEMS_TEMPLATE = [
-["horario da filial","Documentação","Direção"],
+["Horário da filial","Documentação","Direção"],
 ["Serviços oferecidos","Documentação","Direção"],
 ["Tipo de loja","Documentação","Direção"],
 ["Contrato de locação","Documentação","Contabilidade"],
@@ -241,19 +287,73 @@ var ITEMS_TEMPLATE = [
 ["Cadastro com distribuidoras de combustível (IBM/Senha)","Documentação","Direção"],
 ["Cadastro com distribuidoras (Motoristas)","Documentação","Logística"],
 ["Controle de IPTU","Documentação","Obras / Meio Ambiente"],
-["Revenda de GLP","Documentação","Obras / Meio Ambiente"],
 ["Extintores","Documentação","Obras / Meio Ambiente"],
 ["Bombas e aferições, teste de estanqueidade","Documentação","Obras / Meio Ambiente"],
 ["Cadastro do posto no checklist fácil","Documentação","Direção"],
 ["Classificação do posto (Urbano/Rodovia)","Documentação","Compras"],
-["Contabilidade (Transição)","Contabilidade","Contabilidade"],
+["Inventário de Combustível","Obras / Manutenção","Estoque / Auditoria"],
+["Inventário de Loja","Obras / Manutenção","Estoque / Auditoria"],
+["NF de estoque","Obras / Manutenção","Estoque / Auditoria"],
+["Pedidos combustíveis","Obras / Manutenção","Logística"],
+["Volume Comb.","Obras / Manutenção","Direção"],
+["Tamanho de loja (cluster, mobiliário)","Obras / Manutenção","Direção"],
+["Previsão de venda loja","Obras / Manutenção","Direção"],
+["Previsão de venda PA","Obras / Manutenção","Direção"],
+["Câmeras","Obras / Manutenção","Obras / Meio Ambiente"],
+["Alarmes","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pitoco (batente)","Obras / Manutenção","Direção"],
+["Adesivos troca de óleo (Informações fachada, 15 itens checklist)","Obras / Manutenção","Direção"],
+["Ações de abertura, promoção, ofertas especiais, brindes","Obras / Manutenção","Marketing"],
+["Definição de material de preço","Obras / Manutenção","Marketing"],
+["Sandrito","Obras / Manutenção","Marketing"],
+["Arco de Balão","Obras / Manutenção","Marketing"],
+["Balão do Sander","Obras / Manutenção","Marketing"],
+["Rádio","Obras / Manutenção","Marketing"],
+["Ações APP Sander","Obras / Manutenção","Marketing"],
+["Adesivos banheiro","Obras / Manutenção","Marketing"],
+["Adesivos NF Gaúcha","Obras / Manutenção","Marketing"],
+["Manual do Consumidor","Obras / Manutenção","Marketing"],
+["Sentinela, outdoor, adesivos, imagens, fachadas, cavaletes de preços, totens, placa de preço ANP, adesivo coluna, faixa vidros","Obras / Manutenção","Marketing"],
+["Informações portas (Não fume...)","Obras / Manutenção","Marketing"],
+["Placas de estacionamento","Obras / Manutenção","Marketing"],
+["Placa de Aproximação (outdoor)","Obras / Manutenção","Marketing"],
+["App Sander — propaganda","Obras / Manutenção","Marketing"],
+["Pátio — áreas de acesso e saída estão pintadas, precisa limpeza (secante)","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pátio — como estão as entradas e saídas do posto (buracos)","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pátio — precisa lâmpada verde e jardinagem","Obras / Manutenção","Obras / Meio Ambiente"],
+["Estacionamento — está demarcado e identificado (placa de 15 minutos)","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pista — condições das canaletas","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pista — condições do piso","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pista — vaso de flor","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pista — pinturas dos pit stop","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pista — calibrador","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pista — pintura dos bocais e drenagens","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pista — cavalete de promoção","Obras / Manutenção","Marketing"],
+["Pista — filtro de diesel","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pista — colunas","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pista — forros","Obras / Manutenção","Obras / Meio Ambiente"],
+["Imagem — testeiras","Obras / Manutenção","Marketing"],
+["Imagem — totens","Obras / Manutenção","Marketing"],
+["Imagem — fachada da loja","Obras / Manutenção","Marketing"],
+["Imagem — sentinelas / ecoflag / faixas","Obras / Manutenção","Marketing"],
+["Imagem — adesivos de porta e obrigatórios","Obras / Manutenção","Marketing"],
+["Imagem — adesivo nota fiscal Gaúcha","Obras / Manutenção","Marketing"],
+["Imagem — iluminação da loja","Obras / Manutenção","Obras / Meio Ambiente"],
+["Imagem — troca de óleo, manutenções, iluminação, fachada, rampas","Obras / Manutenção","Obras / Meio Ambiente"],
+["Vestiários — armários","Obras / Manutenção","Obras / Meio Ambiente"],
+["Medidor elétrico está ok ou precisa ajuste?","Obras / Manutenção","Obras / Meio Ambiente"],
+["Lastro de caixas foi providenciado?","Obras / Manutenção","Operação"],
+["Distância aproximada até o banco","Obras / Manutenção","Direção"],
+["Filial precisa de cheque troco?","Obras / Manutenção","Operação"],
+["Placa de preço da ANP está ok?","Obras / Manutenção","Obras / Meio Ambiente"],
+["Planta Baixa ou Croqui — com identificação das bombas e tanques/outros, conforme exigência da fiscalização?","Obras / Manutenção","Obras / Meio Ambiente"],
+["Planta SASC","Obras / Manutenção","Obras / Meio Ambiente"],
 ["Contratação de Funcionários","Operação","Operação"],
+["Uniformes da equipe","Operação","Operação"],
 ["QL aprovado para a filial","Operação","Operação"],
 ["Exames admissionais","Operação","Operação"],
 ["Treinamento do Gestor","Operação","Operação"],
 ["Treinamento operacional da equipe","Operação","Operação"],
-["Horário de operação","Operação","Operação"],
-["Localização","Operação","Operação"],
 ["Compra de estoque","Operação","Operação"],
 ["Grupo whatsapp Supervisor","Operação","Operação"],
 ["Pedido de Uniformes/EPIs","Operação","Operação"],
@@ -262,129 +362,108 @@ var ITEMS_TEMPLATE = [
 ["Lastro de Caixa","Operação","Operação"],
 ["Cheque troco","Operação","Operação"],
 ["Livro do ministério do trabalho","Operação","Operação"],
-["Planogramação de loja, PA, FOOD...","Operação","Varejo / Mix"],
 ["Aluguéis (Locações ativas)","Operação","Operação"],
 ["Limpeza caixa separadora","Operação","Operação"],
 ["Máquinas de ursos","Operação","Operação"],
-["Expositores de pista/sander/stp/centralsul","Operação","Operação"],
-["Manutenções nos jardins e vasos de flor","Operação","Operação"],
-["Montagem da Loja","Operação","Varejo / Mix"],
-["Data da montagem","Operação","Operação"],
-["Inventário de Combustível","Estoque","Estoque / Auditoria"],
-["Inventário de Loja","Estoque","Estoque / Auditoria"],
-["NF de estoque","Estoque","Estoque / Auditoria"],
-["Pedidos combustíveis","Estoque","Logística"],
-["Loja (Cadastro/Precificação)","Cadastro/Precificação","Compras"],
-["Combustíveis (Cadastro/Precificação)","Cadastro/Precificação","Pricing"],
-["Volume Comb.","Metas Posto","Direção"],
-["Tamanho de loja (cluster, mobiliário)","Metas Posto","Direção"],
-["Previsão de venda loja","Metas Posto","Direção"],
-["Previsão de venda PA","Metas Posto","Direção"],
-["Mobiliário Loja","Compras/Manutenções","Compras"],
-["Mobiliário Sala Gerente","Compras/Manutenções","Compras"],
-["Mobiliário Cozinha (Retaguarda)","Compras/Manutenções","Compras"],
-["Mobiliário Vestiários","Compras/Manutenções","Compras"],
-["Prateleiras de estoques loja","Compras/Manutenções","Compras"],
-["Prateleiras de estoques PA","Compras/Manutenções","Compras"],
-["Ar condicionado","Compras/Manutenções","Compras"],
-["Freezer Bebidas","Compras/Manutenções","Compras"],
-["Freezer Cervejeiros","Compras/Manutenções","Compras"],
-["Freezer Retaguarda bebidas","Compras/Manutenções","Compras"],
-["Freezer Retaguarda Congelados","Compras/Manutenções","Compras"],
-["Fornos","Compras/Manutenções","Compras"],
-["Máquina de café","Compras/Manutenções","Compras"],
-["Micro-ondas","Compras/Manutenções","Compras"],
-["Tapete capacho","Compras/Manutenções","Compras"],
-["Cafeteira","Compras/Manutenções","Compras"],
-["Bandejas food","Compras/Manutenções","Compras"],
-["Mobiliário Banheiros","Compras/Manutenções","Compras"],
-["Porta papéis, Saboneteiras, Secadores","Compras/Manutenções","Compras"],
-["Estufas food","Compras/Manutenções","Compras"],
-["Televisores","Compras/Manutenções","Compras"],
-["Tambor de Arla","Compras/Manutenções","Compras"],
-["Ferramentas troca de óleo","Compras/Manutenções","Compras"],
-["Carrinho para pingadeira (Troca de óleo)","Compras/Manutenções","Compras"],
-["Propulsora para Graxa","Compras/Manutenções","Compras"],
-["Tambores para Embalagens","Compras/Manutenções","Compras"],
-["Tambores para coletas de óleo descartado/filtros","Compras/Manutenções","Compras"],
-["Tambores para Panos","Compras/Manutenções","Compras"],
-["Régua de medição","Compras/Manutenções","Compras"],
-["Kit densímetro","Compras/Manutenções","Compras"],
-["Proveta de 1 litro","Compras/Manutenções","Compras"],
-["Proveta de 100 ml","Compras/Manutenções","Compras"],
-["Bomba de Drenagem","Compras/Manutenções","Compras"],
-["Aferidor de bombas","Compras/Manutenções","Compras"],
-["Calibrador de AR","Compras/Manutenções","Compras"],
-["Compressor","Compras/Manutenções","Compras"],
-["Câmeras","Compras/Manutenções","Obras / Meio Ambiente"],
-["Alarmes","Compras/Manutenções","Obras / Meio Ambiente"],
-["Expositor Lubrificante","Compras/Manutenções","Compras"],
-["Monitores","Compras/Manutenções","T.I"],
-["Computadores","Compras/Manutenções","T.I"],
-["Impressora (Locação)","Compras/Manutenções","T.I"],
-["Antenas Wi-fi","Compras/Manutenções","T.I"],
-["Contratação de internet","Compras/Manutenções","T.I"],
-["PAY","Compras/Manutenções","T.I"],
-["Tablet de Comunicação","Compras/Manutenções","T.I"],
-["Computador retaguarda","Compras/Manutenções","T.I"],
-["Automação/ Telemed","Compras/Manutenções","T.I"],
-["POS","Compras/Manutenções","T.I"],
-["Impressora fiscal","Compras/Manutenções","T.I"],
-["Relógio ponto","Compras/Manutenções","T.I"],
-["Telefone móvel","Compras/Manutenções","T.I"],
-["Nobreak","Compras/Manutenções","T.I"],
-["Gaveta de caixa","Compras/Manutenções","Compras"],
-["Pitoco (batente)","Compras/Manutenções","Direção"],
-["Adesivos troca de óleo (Informações fachada, 15 itens checklist)","Compras/Manutenções","Direção"],
-["Conveniência","Mix","Varejo / Mix"],
-["Componentes de Café","Mix","Varejo / Mix"],
-["Produtos Automotivos","Mix","Compras"],
-["Material de Consumo","Mix","Operação"],
-["Material de Pista","Mix","Operação"],
-["Sorvetes e Picolés","Mix","Varejo / Mix"],
-["Food","Mix","Varejo / Mix"],
-["Gelo (Freezer)","Mix","Compras"],
-["Tabaco (Expositor)","Mix","Compras"],
-["Pepsico","Mix","Compras"],
-["Material de limpeza loja (DML: Vassouras, Rodo, Detergente, MOP, panos)","Mix","Compras"],
-["Material Pista (Marreca, Rodo Pista, Rodo Para-brisa, Mangueira água)","Mix","Compras"],
-["Tambor de Graxa (Rodovias)","Mix","Compras"],
-["Bicos, mangueiras, rodilhas","Mix","Operação"],
-["Pedido de Filtros","Mix","Compras"],
-["Pedido Palheta","Mix","Compras"],
-["Etiquetas de preços","Mix","Varejo / Mix"],
-["Comandas","Mix","Operação"],
-["Limpeza","Preparação da Loja","Operação"],
-["Recebimento de produtos","Preparação da Loja","Operação"],
-["Montar exposição","Preparação da Loja","Operação"],
-["Testar equipamentos","Preparação da Loja","Operação"],
-["Preparar food","Preparação da Loja","Operação"],
-["Ações de abertura, promoção, ofertas especiais, brindes","MKT","Marketing"],
-["Definição de material de preço","MKT","Marketing"],
-["Sandrito","MKT","Marketing"],
-["Arco de Balão","MKT","Marketing"],
-["Balão do Sander","MKT","Marketing"],
-["Rádio","MKT","Marketing"],
-["Ações APP Sander","MKT","Marketing"],
-["Adesivos banheiro","MKT","Marketing"],
-["Adesivos NF Gaúcha","MKT","Marketing"],
-["Manual do Consumidor","MKT","Marketing"],
-["Sentinela, outdoor, adesivos, imagens, fachadas, cavaletes, totens, placa ANP, adesivo coluna, faixa vidros","MKT","Marketing"],
-["Informações portas (Não fume...)","MKT","Marketing"],
-["Placas de estacionamento","MKT","Marketing"],
-["Placa de Aproximação (outdoor)","MKT","Marketing"],
-["Livro do ministério do trabalho (RH)","MKT","RH"],
-["Ficha de controles de EPIs","MKT","RH"],
-["Carta Frete","Meios de Pagamento","Faturamento"],
-["Encaminhar cadastro das operadoras de cartão crédito","Meios de Pagamento","Faturamento"],
-["SAQUEPAGUE","Meios de Pagamento","Faturamento"],
-["Contas Bancos","Meios de Pagamento","Faturamento"],
-["Cadastramento dos portais de carta frete","Meios de Pagamento","Faturamento"],
+["Fazer manutenções nos jardins e vasos de flor","Operação","Operação"],
+["Pasta de documentos no posto (planilhas obrigatórias)","Operação","Operação"],
+["Situação das bombas — bicos, lacres, blocos, iluminação, placas do fabricante","Operação","Obras / Meio Ambiente"],
+["Mangueiras estão ok — mandar extra","Operação","Obras / Meio Ambiente"],
+["Especificação do produto nas bombas","Operação","Obras / Meio Ambiente"],
+["Identificação externa dos banheiros","Operação","Marketing"],
+["Mobiliário Loja","Compras","Compras"],
+["Mobiliário Banheiros","Compras","Compras"],
+["Mobiliário Sala Gerente","Compras","Compras"],
+["Mobiliário Cozinha (Retaguarda)","Compras","Compras"],
+["Mobiliário Vestiários","Compras","Compras"],
+["Prateleiras de estoques loja","Compras","Compras"],
+["Prateleiras de estoques PA","Compras","Compras"],
+["Ar condicionado","Compras","Compras"],
+["Freezer Bebidas","Compras","Compras"],
+["Freezer Cervejeiros","Compras","Compras"],
+["Freezer Retaguarda bebidas","Compras","Compras"],
+["Freezer Retaguarda Congelados","Compras","Compras"],
+["Fornos","Compras","Compras"],
+["Micro-ondas","Compras","Compras"],
+["Tapete capacho","Compras","Compras"],
+["Porta papéis, Saboneteiras, Secadores","Compras","Compras"],
+["Estufas food","Compras","Compras"],
+["Televisores","Compras","Compras"],
+["Tambor de Arla","Compras","Compras"],
+["Régua de medição","Compras","Compras"],
+["Kit densímetro","Compras","Compras"],
+["Proveta de 1 litro","Compras","Compras"],
+["Proveta de 100 ml","Compras","Compras"],
+["Aferidor de 20 litros","Compras","Compras"],
+["Balde graduado","Compras","Compras"],
+["Bomba de Drenagem","Compras","Compras"],
+["Calibrador de AR","Compras","Compras"],
+["Compressor","Compras","Compras"],
+["Gelo (Freezer)","Compras","Compras"],
+["Tambor de Graxa (Rodovias)","Compras","Compras"],
+["Comandas","Compras","Compras"],
+["Cadastro Pepsico","Compras","Compras"],
+["Banheiros — saboneteira, papel toalha, papel higiênico ou secador de mãos","Compras","Compras"],
+["Lixeiras para pista","Compras","Compras"],
+["Material de limpeza loja (DML: vassouras, detergente, MOP, panos, sabonete líquido banheiros)","CD","CD"],
+["Material de Pista (marreca, rodo pista grande, rodo para-brisa caminhão/carro, mangueira água, vassourão pista, panos troca de óleo, balde pista)","CD","CD"],
+["Material de consumo (tesoura, grampeador, grampo, dupla face, espanador, calculadora, régua, estilete, borrifador)","CD","CD"],
+["Bicos, mangueiras, rodilhas","CD","CD"],
+["Monitores","T.I","T.I"],
+["Gaveta de caixa","T.I","T.I"],
+["Computadores","T.I","T.I"],
+["Impressora (Locação)","T.I","T.I"],
+["Antenas Wi-fi","T.I","T.I"],
+["Contratação de internet","T.I","T.I"],
+["PAY","T.I","T.I"],
+["Tablet de Comunicação","T.I","T.I"],
+["Computador retaguarda","T.I","T.I"],
+["Automação / Telemed","T.I","T.I"],
+["POS","T.I","T.I"],
+["Impressora fiscal","T.I","T.I"],
+["Relógio ponto","T.I","T.I"],
+["Telefone móvel","T.I","T.I"],
+["Nobreak","T.I","T.I"],
+["Conveniência","Varejo / Mix","Varejo / Mix"],
+["Componentes de Café","Varejo / Mix","Varejo / Mix"],
+["Máquina de café","Varejo / Mix","Varejo / Mix"],
+["Sorvetes e Picolés","Varejo / Mix","Varejo / Mix"],
+["Food","Varejo / Mix","Varejo / Mix"],
+["Limpeza","Varejo / Mix","Varejo / Mix"],
+["Recebimento de produtos","Varejo / Mix","Varejo / Mix"],
+["Montar exposição","Varejo / Mix","Varejo / Mix"],
+["Testar equipamentos","Varejo / Mix","Varejo / Mix"],
+["Preparar food","Varejo / Mix","Varejo / Mix"],
+["Etiquetas de preços","Varejo / Mix","Varejo / Mix"],
+["Montagem da Loja","Varejo / Mix","Varejo / Mix"],
+["Planogramação de loja, FOOD...","Varejo / Mix","Varejo / Mix"],
+["Pincel de silicone para espalhar ovo no salgado","Varejo / Mix","Varejo / Mix"],
+["Luva para forno","Varejo / Mix","Varejo / Mix"],
+["Talheres","Varejo / Mix","Varejo / Mix"],
+["Bandejas para food","Varejo / Mix","Varejo / Mix"],
+["Pegador de lanches","Varejo / Mix","Varejo / Mix"],
+["Pedido de Filtros","Compras","Compras"],
+["Pedido Palheta","Compras","Compras"],
+["Produtos Automotivos","Compras","Compras"],
+["Revenda de GLP","Compras","Compras"],
+["Expositores de pista/sander/stp/centralsul","Compras","Compras"],
+["Ferramentas troca de óleo","Compras","Compras"],
+["Carrinho para pingadeira (Troca de óleo)","Compras","Compras"],
+["Propulsora para Graxa","Compras","Compras"],
+["Tambores para Embalagens","Compras","Compras"],
+["Tambores para coletas de óleo descartado/filtros","Compras","Compras"],
+["Tambores para Panos","Compras","Compras"],
+["Expositor Lubrificante","Compras","Compras"],
 ["Cadastro de Clientes Adquiridos (CNPJ, Cidade, Preço, Meios de Pagamento)","Comercial","Comercial"],
 ["Visitação dos principais clientes","Comercial","Comercial"],
 ["Visitação Prefeitura/Licitação","Comercial","Comercial"],
 ["Mapeamento de concorrentes e definição de preços","Comercial","Comercial"],
-["Verificar clientes de outro posto","Comercial","Comercial"]
+["Verificar clientes de outro posto","Comercial","Comercial"],
+["Carta Frete","Faturamento","Faturamento"],
+["Encaminhar cadastro das operadoras de cartão crédito","Faturamento","Faturamento"],
+["SAQUEPAGUE","Faturamento","Faturamento"],
+["Contas Bancos","Faturamento","Faturamento"],
+["Cadastramento dos portais de carta frete","Faturamento","Faturamento"]
 ];
 
 /* ================= STATE ================= */
@@ -399,6 +478,58 @@ function loadData(){
     DATA = raw ? JSON.parse(raw) : { postos: [] };
   }catch(e){ DATA = { postos: [] }; }
 }
+
+function loadSetores(){
+  try{
+    var raw = localStorage.getItem('ab_setores');
+    var salvos = raw ? JSON.parse(raw) : null;
+    SETORES = (salvos && salvos.length) ? salvos : SETORES_DEFAULT.slice();
+  }catch(e){ SETORES = SETORES_DEFAULT.slice(); }
+}
+function saveSetoresLocal(){ localStorage.setItem('ab_setores', JSON.stringify(SETORES)); }
+
+function adicionarSetor(nome, icone){
+  nome = nome.trim();
+  if(!nome) return;
+  if(SETORES.some(function(s){ return s.key===nome; })){ alert('Já existe um setor com esse nome.'); return; }
+  SETORES.push({key:nome, icone: icone.trim() || '📌'});
+  saveSetoresLocal();
+  syncPushSetores();
+}
+
+/* Renomear um setor precisa migrar item.setor em todos os itens de todos os postos deste
+   aparelho (DATA.postos) — sem isso os itens continuariam guardando o nome antigo. Como
+   saveData() reenvia DATA.postos inteiro pro backend (upsert por ID), a migração se
+   propaga pra nuvem e chega nos outros aparelhos no próximo sync deles. */
+function editarSetor(oldKey, novoNome, novoIcone){
+  novoNome = novoNome.trim();
+  if(!novoNome) return;
+  if(novoNome!==oldKey && SETORES.some(function(s){ return s.key===novoNome; })){ alert('Já existe um setor com esse nome.'); return; }
+  var s = SETORES.find(function(s){ return s.key===oldKey; });
+  if(!s) return;
+  s.key = novoNome;
+  s.icone = novoIcone.trim() || s.icone;
+  if(novoNome!==oldKey){
+    if(SETOR_RESPONSAVEL_DEFAULT[oldKey]!==undefined){
+      SETOR_RESPONSAVEL_DEFAULT[novoNome] = SETOR_RESPONSAVEL_DEFAULT[oldKey];
+      delete SETOR_RESPONSAVEL_DEFAULT[oldKey];
+    }
+    DATA.postos.forEach(function(p){
+      p.itens.forEach(function(it){ if(it.setor===oldKey) it.setor = novoNome; });
+    });
+    if(STATE.setorAtual===oldKey) STATE.setorAtual = novoNome;
+    saveData();
+  }
+  saveSetoresLocal();
+  syncPushSetores();
+}
+
+function syncPushSetores(){
+  var url = getScriptUrl();
+  if(!url) return;
+  fetch(url, { method:'POST', body: JSON.stringify({ setores: SETORES }) }).catch(function(){});
+}
+
 function saveData(){
   localStorage.setItem('ab_data', JSON.stringify(DATA));
   syncPush();
@@ -412,7 +543,7 @@ function criarPosto(nome, bandeira, dataAbertura){
     dataAbertura: dataAbertura,
     criadoEm: Date.now(),
     itens: ITEMS_TEMPLATE.map(function(t){
-      return { id: uid(), item:t[0], fase:t[1], setor:t[2], responsavel: SETOR_RESPONSAVEL_DEFAULT[t[2]] || '', status:'Pendente', observacao:'', historico:[], anexos:[] };
+      return { id: uid(), item:t[0], fase:t[1], setor:t[2], responsavel: SETOR_RESPONSAVEL_DEFAULT[t[2]] || '', status:'Pendente', observacao:'', historico:[], anexos:[], demandas:[] };
     })
   };
   DATA.postos.push(posto);
@@ -523,7 +654,8 @@ function renderDashboard(){
     + '<div class="summary-tile tile-na"><div class="num">'+c['N/A']+'</div><div class="lbl">N/A</div></div>'
     + '</div>';
 
-  html += '<button class="btn btn-outline btn-block" id="btn-ver-geral" style="margin-bottom:16px">📋 Ver Visão Geral de Todas as Perguntas</button>';
+  html += '<button class="btn btn-outline btn-block" id="btn-ver-geral" style="margin-bottom:10px">📋 Ver Visão Geral de Todas as Perguntas</button>';
+  html += '<div style="text-align:right;margin-bottom:14px"><a href="#" id="link-setores" class="link-config" style="font-size:12.5px">🗂️ gerenciar setores</a></div>';
 
   html += '<div class="setor-grid">';
   SETORES.forEach(function(s){
@@ -552,6 +684,7 @@ function renderDashboard(){
     STATE.tela = 'geral';
     render();
   });
+  document.getElementById('link-setores').addEventListener('click', function(e){ e.preventDefault(); abrirSetores(); });
 }
 
 var filtroStatus = 'todos';
@@ -559,6 +692,7 @@ var filtroStatusGeral = 'todos';
 
 function itemRowHtml(item){
   var anexos = item.anexos || [];
+  var demandas = item.demandas || [];
   return '<div class="item-row'+(item.status==='Concluído'?' done':'')+'" data-item="'+item.id+'">'
     + '<div class="item-title">'+escapeHtml(item.item)+'</div>'
     + '<div class="item-fase">'+escapeHtml(item.fase)+'</div>'
@@ -569,6 +703,8 @@ function itemRowHtml(item){
       + '<input type="text" class="responsavel" data-field="responsavel" placeholder="Responsável" value="'+escapeAttr(item.responsavel)+'">'
       + '<button class="btn btn-sm transfer-btn" data-action="toggle-transfer">🔀 Transferir</button>'
       + '<label class="btn btn-sm anexo-btn">📎 Anexar<input type="file" class="anexo-input" data-action="anexar" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" hidden></label>'
+      + '<button class="btn btn-sm edit-btn" data-action="editar-item">✏️ Editar</button>'
+      + '<button class="btn btn-sm del-btn" data-action="excluir-item">🗑️ Excluir</button>'
     + '</div>'
     + '<textarea class="obs" data-field="observacao" placeholder="Observação...">'+escapeHtml(item.observacao)+'</textarea>'
     + (anexos.length ? '<div class="anexo-list">'+anexos.map(function(a, idx){
@@ -583,6 +719,14 @@ function itemRowHtml(item){
       + '<button class="btn btn-sm" data-action="confirmar-transfer">Confirmar</button>'
     + '</div>'
     + (item.historico.length ? '<div class="transfer-hist">🔀 '+item.historico.map(function(h){ return escapeHtml(h.de)+' → '+escapeHtml(h.para)+' ('+formatDateTime(h.quando)+')'; }).join(' · ')+'</div>' : '')
+    + '<div class="demandas-box">'
+      + (demandas.length ? '<div class="demandas-list">'+demandas.map(function(d, idx){
+          return '<label class="demanda-row"><input type="checkbox" class="demanda-check" data-idx="'+idx+'"'+(d.feito?' checked':'')+'>'
+            + '<span class="demanda-txt"'+(d.feito?' style="text-decoration:line-through;color:var(--muted)"':'')+'>'+escapeHtml(d.texto)+'</span>'
+            + '<button type="button" class="demanda-del" data-idx="'+idx+'" title="Remover demanda">✕</button></label>';
+        }).join('')+'</div>' : '')
+      + '<div class="demanda-add"><input type="text" class="demanda-input" placeholder="+ nova demanda..."><button type="button" class="btn btn-sm demanda-add-btn">Adicionar</button></div>'
+    + '</div>'
     + '</div>';
 }
 
@@ -647,6 +791,76 @@ function wireItemRow(row, onStatusChange){
       render();
     });
   });
+  var editBtn = row.querySelector('[data-action="editar-item"]');
+  if(editBtn) editBtn.addEventListener('click', function(){
+    var posto = getPosto(STATE.postoId);
+    var item = posto.itens.find(function(i){ return i.id===itemId; });
+    var novoTexto = prompt('Editar pergunta:', item.item);
+    if(novoTexto===null) return;
+    novoTexto = novoTexto.trim();
+    if(!novoTexto){ alert('A pergunta não pode ficar em branco.'); return; }
+    item.item = novoTexto;
+    saveData();
+    render();
+  });
+  var delBtn = row.querySelector('[data-action="excluir-item"]');
+  if(delBtn) delBtn.addEventListener('click', function(){
+    var posto = getPosto(STATE.postoId);
+    var item = posto.itens.find(function(i){ return i.id===itemId; });
+    if(!confirm('Excluir a pergunta "'+item.item+'"? Essa ação não pode ser desfeita.')) return;
+    excluirItem(STATE.postoId, itemId);
+    render();
+  });
+
+  row.querySelectorAll('.demanda-check').forEach(function(chk){
+    chk.addEventListener('change', function(){
+      var idx = Number(chk.getAttribute('data-idx'));
+      var posto = getPosto(STATE.postoId);
+      var item = posto.itens.find(function(i){ return i.id===itemId; });
+      item.demandas[idx].feito = chk.checked;
+      saveData();
+      var txt = chk.nextElementSibling;
+      txt.style.textDecoration = chk.checked ? 'line-through' : 'none';
+      txt.style.color = chk.checked ? 'var(--muted)' : '';
+    });
+  });
+  row.querySelectorAll('.demanda-del').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var idx = Number(btn.getAttribute('data-idx'));
+      var posto = getPosto(STATE.postoId);
+      var item = posto.itens.find(function(i){ return i.id===itemId; });
+      item.demandas.splice(idx, 1);
+      saveData();
+      render();
+    });
+  });
+  var demInput = row.querySelector('.demanda-input');
+  var demAddBtn = row.querySelector('.demanda-add-btn');
+  function adicionarDemanda(){
+    var texto = demInput.value.trim();
+    if(!texto) return;
+    var posto = getPosto(STATE.postoId);
+    var item = posto.itens.find(function(i){ return i.id===itemId; });
+    if(!item.demandas) item.demandas = [];
+    item.demandas.push({ id: uid(), texto: texto, feito:false });
+    saveData();
+    render();
+  }
+  if(demAddBtn) demAddBtn.addEventListener('click', adicionarDemanda);
+  if(demInput) demInput.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); adicionarDemanda(); } });
+}
+
+/* Remove local e avisa o backend explicitamente (excluirItemId) — o sync normal (upsert
+   por ID em saveData()/syncPush()) só insere/atualiza os itens presentes no payload, nunca
+   apaga; sem esse aviso o item "ressuscitaria" na próxima vez que outro aparelho sincronizasse. */
+function excluirItem(postoId, itemId){
+  var posto = getPosto(postoId);
+  posto.itens = posto.itens.filter(function(i){ return i.id!==itemId; });
+  saveData();
+  var url = getScriptUrl();
+  if(url){
+    fetch(url, { method:'POST', body: JSON.stringify({excluirItemId:itemId}) }).catch(function(){});
+  }
 }
 
 function enviarAnexo(itemId, file, row){
@@ -828,11 +1042,50 @@ document.getElementById('ni-confirmar').addEventListener('click', function(){
   var posto = getPosto(STATE.postoId);
   posto.itens.push({
     id: uid(), item: texto, fase: 'Adicional', setor: STATE.setorAtual,
-    responsavel:'', status:'Pendente', observacao:'', historico:[], anexos:[]
+    responsavel:'', status:'Pendente', observacao:'', historico:[], anexos:[], demandas:[]
   });
   saveData();
   modalNovoItem.classList.remove('open');
   render();
+});
+
+/* ================= MODAL GERENCIAR SETORES ================= */
+var modalSetores = document.getElementById('modal-setores');
+function abrirSetores(){
+  renderSetoresLista();
+  document.getElementById('ns-icone').value = '';
+  document.getElementById('ns-nome').value = '';
+  modalSetores.classList.add('open');
+}
+function renderSetoresLista(){
+  var el = document.getElementById('setores-lista');
+  el.innerHTML = SETORES.map(function(s){
+    return '<div class="setor-row" data-key="'+escapeAttr(s.key)+'">'
+      + '<input type="text" class="sr-icone" value="'+escapeAttr(s.icone)+'">'
+      + '<input type="text" class="sr-nome" value="'+escapeAttr(s.key)+'">'
+      + '<button class="btn btn-sm sr-salvar">Salvar</button>'
+      + '</div>';
+  }).join('');
+  el.querySelectorAll('.setor-row').forEach(function(row){
+    row.querySelector('.sr-salvar').addEventListener('click', function(){
+      var oldKey = row.getAttribute('data-key');
+      var novoIcone = row.querySelector('.sr-icone').value;
+      var novoNome = row.querySelector('.sr-nome').value;
+      editarSetor(oldKey, novoNome, novoIcone);
+      renderSetoresLista();
+      render();
+    });
+  });
+}
+document.getElementById('ns-fechar').addEventListener('click', function(){ modalSetores.classList.remove('open'); render(); });
+document.getElementById('ns-adicionar').addEventListener('click', function(){
+  var nome = document.getElementById('ns-nome').value.trim();
+  if(!nome){ alert('Digite o nome do setor.'); return; }
+  var icone = document.getElementById('ns-icone').value.trim() || '📌';
+  adicionarSetor(nome, icone);
+  document.getElementById('ns-icone').value = '';
+  document.getElementById('ns-nome').value = '';
+  renderSetoresLista();
 });
 
 function atualizarSyncStatus(){
@@ -858,7 +1111,21 @@ function syncPull(){
   syncing = true;
   fetch(url).then(function(r){ return r.json(); }).then(function(resp){
     syncing = false;
-    if(!resp || !resp.ok || !resp.postos) return;
+    if(!resp || !resp.ok) return;
+    // Setores: catálogo compartilhado — a nuvem manda no ícone/nome (pega a versão mais
+    // recente de quem editou em outro aparelho); setor novo achado na nuvem e ainda
+    // ausente localmente é adicionado. Setor adicionado só localmente (ainda não
+    // sincronizado) continua na lista até o próximo push.
+    if(resp.setores && resp.setores.length){
+      resp.setores.forEach(function(rs){
+        var local = SETORES.find(function(s){ return s.key===rs.key; });
+        if(local){ local.icone = rs.icone || local.icone; }
+        else { SETORES.push({key:rs.key, icone:rs.icone||'📌'}); }
+        if(rs.responsavel && SETOR_RESPONSAVEL_DEFAULT[rs.key]===undefined) SETOR_RESPONSAVEL_DEFAULT[rs.key] = rs.responsavel;
+      });
+      saveSetoresLocal();
+    }
+    if(!resp.postos) return;
     // Merge simples: nuvem é a fonte da verdade quando não há dado local ainda;
     // depois disso, mescla por ID de posto/item (local sempre vence em caso de edição não sincronizada).
     var remotos = resp.postos;
@@ -880,6 +1147,7 @@ function syncPull(){
 
 /* ================= INIT ================= */
 loadData();
+loadSetores();
 render();
 syncPull();
 setInterval(syncPull, 120000);

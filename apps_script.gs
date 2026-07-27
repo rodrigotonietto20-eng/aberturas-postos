@@ -5,9 +5,13 @@
  * 1. Crie uma nova planilha Google Sheets (separada das planilhas do CRM e do Horas Extras).
  * 2. Crie duas abas com esses nomes exatos:
  *    - "Postos"  -> cabeçalho linha 1: ID | Nome | Bandeira | DataAbertura | CriadoEm
- *    - "Itens"   -> cabeçalho linha 1: ID | PostoID | Item | Fase | Setor | Responsavel | Status | Observacao | Historico | Anexos
- *    (se a aba "Itens" já existir sem a coluna "Anexos", adicione-a manualmente na planilha
- *    antes de reimplantar — ela guarda um JSON com [{nome,url,tipo,quando}] por item)
+ *    - "Itens"   -> cabeçalho linha 1: ID | PostoID | Item | Fase | Setor | Responsavel | Status | Observacao | Historico | Anexos | Demandas
+ *    (se a aba "Itens" já existir sem alguma coluna nova, adicione manualmente antes de
+ *    reimplantar — sem isso o app ainda funciona (grava na posição certa mesmo sem cabeçalho
+ *    nomeado), só fica sem nome visível pra quem olha a planilha direto. "Anexos" guarda
+ *    [{nome,url,tipo,quando}], "Demandas" guarda [{id,texto,feito}] por item)
+ *    - "Setores" -> NÃO precisa criar manualmente, o script cria sozinho (Key | Icone |
+ *      ResponsavelPadrao) na primeira chamada depois que você colar este código novo.
  * 3. Menu Extensões -> Apps Script. Apague o conteúdo padrão e cole este arquivo inteiro.
  * 4. Menu Implantar -> Nova implantação -> tipo "App da Web".
  *    - Executar como: Eu (sua conta)
@@ -40,11 +44,29 @@ var CAMPOS_ITEM = [
   {header:'Status',       key:'status'},
   {header:'Observacao',   key:'observacao'},
   {header:'Historico',    key:'historico', json:true},
-  {header:'Anexos',       key:'anexos', json:true}
+  {header:'Anexos',       key:'anexos', json:true},
+  {header:'Demandas',     key:'demandas', json:true}
+];
+
+var CAMPOS_SETOR = [
+  {header:'Key',              key:'key'},
+  {header:'Icone',            key:'icone'},
+  {header:'ResponsavelPadrao', key:'responsavel'}
 ];
 
 function getSheetPostos(){ return SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Postos'); }
 function getSheetItens(){ return SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Itens'); }
+
+// Aba nova (2026-07-27) — auto-criada na primeira chamada, não precisa passo manual.
+function getSheetSetores(){
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('Setores');
+  if(!sh){
+    sh = ss.insertSheet('Setores');
+    sh.getRange(1,1,1,CAMPOS_SETOR.length).setValues([CAMPOS_SETOR.map(function(c){ return c.header; })]);
+  }
+  return sh;
+}
 
 function lerLinhas(sheet, campos){
   var rows = sheet.getDataRange().getValues();
@@ -76,6 +98,7 @@ function lerLinhas(sheet, campos){
 function doGet(e){
   var postos = lerLinhas(getSheetPostos(), CAMPOS_POSTO);
   var itens = lerLinhas(getSheetItens(), CAMPOS_ITEM);
+  var setores = lerLinhas(getSheetSetores(), CAMPOS_SETOR);
 
   var itensPorPosto = {};
   itens.forEach(function(it){
@@ -86,7 +109,7 @@ function doGet(e){
   });
   postos.forEach(function(p){ p.itens = itensPorPosto[p.id] || []; });
 
-  return ContentService.createTextOutput(JSON.stringify({ok:true, postos:postos}))
+  return ContentService.createTextOutput(JSON.stringify({ok:true, postos:postos, setores:setores}))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -121,6 +144,15 @@ function excluirPosto(postoId){
   var sheetItens = getSheetItens();
   var dataI = sheetItens.getDataRange().getValues();
   for(var i=dataI.length-1;i>=1;i--){ if(dataI[i][1]===postoId) sheetItens.deleteRow(i+1); }
+}
+
+// Item excluído pelo app (botão 🗑️ Excluir dentro do posto). Precisa de endpoint próprio
+// porque o upsert() normal só insere/atualiza os IDs presentes no payload — nunca apaga —
+// então sem isso o item voltaria assim que outro aparelho sincronizasse.
+function excluirItemPorId(itemId){
+  var sheet = getSheetItens();
+  var data = sheet.getDataRange().getValues();
+  for(var i=data.length-1;i>=1;i--){ if(data[i][0]===itemId) sheet.deleteRow(i+1); }
 }
 
 function getOrCreatePastaRaizAnexos(){
@@ -163,6 +195,16 @@ function doPost(e){
     return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
   }
 
+  if(body.excluirItemId){
+    excluirItemPorId(body.excluirItemId);
+    return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if(body.setores){
+    upsert(getSheetSetores(), CAMPOS_SETOR, body.setores, 'key');
+    return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
+  }
+
   var postos = body.postos || [];
   if(!postos.length) return ContentService.createTextOutput(JSON.stringify({ok:true}));
 
@@ -177,7 +219,7 @@ function doPost(e){
       todosItens.push({
         id:it.id, postoId:p.id, item:it.item, fase:it.fase, setor:it.setor,
         responsavel:it.responsavel, status:it.status, observacao:it.observacao, historico:it.historico,
-        anexos:it.anexos
+        anexos:it.anexos, demandas:it.demandas
       });
     });
   });
