@@ -101,8 +101,11 @@ textarea.obs{width:100%;min-height:34px;resize:vertical;margin-top:4px;}
 .anexo-status{font-size:11px;color:var(--muted);margin-top:4px;}
 .demandas-box{margin-top:8px;}
 .demandas-list{display:flex;flex-direction:column;gap:4px;margin-bottom:6px;}
-.demanda-row{display:flex;align-items:center;gap:6px;font-size:13px;background:var(--bg2);border-radius:8px;padding:5px 8px;}
+.demanda-row{display:flex;align-items:center;gap:6px;font-size:13px;background:var(--bg2);border-radius:8px;padding:5px 8px;transition:background .15s;}
+.demanda-row.done{background:var(--ok-bg);}
 .demanda-row .demanda-txt{flex:1;}
+.demanda-row.done .demanda-txt{text-decoration:line-through;color:var(--ok);}
+.demanda-check{accent-color:var(--ok);width:16px;height:16px;}
 .demanda-del{border:none;background:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0 2px;line-height:1;}
 .demanda-del:hover{color:#c0392b;}
 .demanda-add{display:flex;gap:6px;}
@@ -731,8 +734,8 @@ function itemRowHtml(item){
     + (item.historico.length ? '<div class="transfer-hist">🔀 '+item.historico.map(function(h){ return escapeHtml(h.de)+' → '+escapeHtml(h.para)+' ('+formatDateTime(h.quando)+')'; }).join(' · ')+'</div>' : '')
     + '<div class="demandas-box">'
       + (demandas.length ? '<div class="demandas-list">'+demandas.map(function(d, idx){
-          return '<label class="demanda-row"><input type="checkbox" class="demanda-check" data-idx="'+idx+'"'+(d.feito?' checked':'')+'>'
-            + '<span class="demanda-txt"'+(d.feito?' style="text-decoration:line-through;color:var(--muted)"':'')+'>'+escapeHtml(d.texto)+'</span>'
+          return '<label class="demanda-row'+(d.feito?' done':'')+'"><input type="checkbox" class="demanda-check" data-idx="'+idx+'"'+(d.feito?' checked':'')+'>'
+            + '<span class="demanda-txt">'+escapeHtml(d.texto)+'</span>'
             + '<button type="button" class="demanda-del" data-idx="'+idx+'" title="Remover demanda">✕</button></label>';
         }).join('')+'</div>' : '')
       + '<div class="demanda-add"><input type="text" class="demanda-input" placeholder="+ nova demanda..."><button type="button" class="btn btn-sm demanda-add-btn">Adicionar</button></div>'
@@ -829,9 +832,7 @@ function wireItemRow(row, onStatusChange){
       var item = posto.itens.find(function(i){ return i.id===itemId; });
       item.demandas[idx].feito = chk.checked;
       saveData();
-      var txt = chk.nextElementSibling;
-      txt.style.textDecoration = chk.checked ? 'line-through' : 'none';
-      txt.style.color = chk.checked ? 'var(--muted)' : '';
+      chk.closest('.demanda-row').classList.toggle('done', chk.checked);
     });
   });
   row.querySelectorAll('.demanda-del').forEach(function(btn){
