@@ -470,13 +470,16 @@ var ITEMS_TEMPLATE = [
 ];
 
 /* Demandas padrão por pergunta — algumas perguntas do template já nascem com uma lista de
-   checkboxes pronta pra marcar (em vez de depender de texto livre na Observação). Só afeta
-   postos criados depois dessa mudança; postos já existentes mantêm o que já tinham. Pra
-   adicionar em outra pergunta no futuro, é só criar uma chave nova aqui com o texto exato
-   do item (igual está em ITEMS_TEMPLATE). */
-var DEMANDAS_DEFAULT_POR_ITEM = {
+   checkboxes pronta pra marcar (em vez de depender de texto livre na Observação). Valor
+   inicial/fallback só — a lista realmente usada (DEMANDAS_DEFAULT_POR_ITEM) é carregada de
+   localStorage/nuvem em loadDemandasPadrao(): toda demanda nova que alguém digitar em
+   qualquer posto vira automaticamente padrão pra próximos postos com a mesma pergunta (ver
+   registrarDemandaPadrao()). Só afeta postos criados depois; postos já existentes mantêm o
+   que já tinham. */
+var DEMANDAS_DEFAULT_POR_ITEM_DEFAULT = {
   'Serviços oferecidos': ['Banheiro','Troca de óleo','Wi-Fi','Borracharia','Lavanderia','Lavagem','Conveniência','Hotel','GLP','Lubrificação','Eletroposto']
 };
+var DEMANDAS_DEFAULT_POR_ITEM = {};
 
 /* ================= STATE ================= */
 var DATA = { postos: [] };
@@ -540,6 +543,36 @@ function syncPushSetores(){
   var url = getScriptUrl();
   if(!url) return;
   fetch(url, { method:'POST', body: JSON.stringify({ setores: SETORES }) }).catch(function(){});
+}
+
+function loadDemandasPadrao(){
+  try{
+    var raw = localStorage.getItem('ab_demandas_padrao');
+    var salvos = raw ? JSON.parse(raw) : null;
+    DEMANDAS_DEFAULT_POR_ITEM = salvos || JSON.parse(JSON.stringify(DEMANDAS_DEFAULT_POR_ITEM_DEFAULT));
+  }catch(e){ DEMANDAS_DEFAULT_POR_ITEM = JSON.parse(JSON.stringify(DEMANDAS_DEFAULT_POR_ITEM_DEFAULT)); }
+}
+function saveDemandasPadraoLocal(){ localStorage.setItem('ab_demandas_padrao', JSON.stringify(DEMANDAS_DEFAULT_POR_ITEM)); }
+
+// Toda demanda nova digitada em qualquer posto vira padrão pra próximos postos com a mesma
+// pergunta — pedido do usuário: "toda demanda criada com checkbox passe a ser nativa do app
+// pra os próximos postos". Não mexe nas demandas de postos já existentes, só no molde usado
+// por criarPosto() daqui pra frente.
+function registrarDemandaPadrao(itemNome, texto){
+  if(!DEMANDAS_DEFAULT_POR_ITEM[itemNome]) DEMANDAS_DEFAULT_POR_ITEM[itemNome] = [];
+  var lista = DEMANDAS_DEFAULT_POR_ITEM[itemNome];
+  var jaTem = lista.some(function(t){ return t.toLowerCase()===texto.toLowerCase(); });
+  if(jaTem) return;
+  lista.push(texto);
+  saveDemandasPadraoLocal();
+  syncPushDemandasPadrao();
+}
+
+function syncPushDemandasPadrao(){
+  var url = getScriptUrl();
+  if(!url) return;
+  var registros = Object.keys(DEMANDAS_DEFAULT_POR_ITEM).map(function(k){ return { itemNome:k, textos:DEMANDAS_DEFAULT_POR_ITEM[k] }; });
+  fetch(url, { method:'POST', body: JSON.stringify({ demandasPadrao: registros }) }).catch(function(){});
 }
 
 function saveData(){
@@ -855,6 +888,7 @@ function wireItemRow(row, onStatusChange){
     if(!item.demandas) item.demandas = [];
     item.demandas.push({ id: uid(), texto: texto, feito:false });
     saveData();
+    registrarDemandaPadrao(item.item, texto);
     render();
   }
   if(demAddBtn) demAddBtn.addEventListener('click', adicionarDemanda);
@@ -1138,6 +1172,18 @@ function syncPull(){
       });
       saveSetoresLocal();
     }
+    // Demandas padrão: mescla por união — texto novo achado na nuvem (digitado por alguém
+    // em outro aparelho) entra na lista local também, sem apagar nenhum já existente.
+    if(resp.demandasPadrao && resp.demandasPadrao.length){
+      resp.demandasPadrao.forEach(function(rd){
+        if(!DEMANDAS_DEFAULT_POR_ITEM[rd.itemNome]) DEMANDAS_DEFAULT_POR_ITEM[rd.itemNome] = [];
+        var lista = DEMANDAS_DEFAULT_POR_ITEM[rd.itemNome];
+        (rd.textos||[]).forEach(function(t){
+          if(!lista.some(function(l){ return l.toLowerCase()===t.toLowerCase(); })) lista.push(t);
+        });
+      });
+      saveDemandasPadraoLocal();
+    }
     if(!resp.postos) return;
     // Merge: nuvem é a fonte da verdade quando não há dado local ainda; pra itens que já
     // existem nos dois lados, a nuvem também vence — sem isso, um item transferido de setor
@@ -1167,6 +1213,7 @@ function syncPull(){
 /* ================= INIT ================= */
 loadData();
 loadSetores();
+loadDemandasPadrao();
 render();
 syncPull();
 setInterval(syncPull, 120000);

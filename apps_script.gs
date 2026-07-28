@@ -54,6 +54,11 @@ var CAMPOS_SETOR = [
   {header:'ResponsavelPadrao', key:'responsavel'}
 ];
 
+var CAMPOS_DEMANDA_PADRAO = [
+  {header:'ItemNome', key:'itemNome'},
+  {header:'Textos',   key:'textos', json:true}
+];
+
 function getSheetPostos(){ return SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Postos'); }
 function getSheetItens(){ return SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Itens'); }
 
@@ -64,6 +69,18 @@ function getSheetSetores(){
   if(!sh){
     sh = ss.insertSheet('Setores');
     sh.getRange(1,1,1,CAMPOS_SETOR.length).setValues([CAMPOS_SETOR.map(function(c){ return c.header; })]);
+  }
+  return sh;
+}
+
+// Aba nova (2026-07-27) — auto-criada, guarda as demandas (checkbox) que os usuários foram
+// digitando em cada pergunta, pra virarem padrão nos próximos postos com a mesma pergunta.
+function getSheetDemandasPadrao(){
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('DemandasPadrao');
+  if(!sh){
+    sh = ss.insertSheet('DemandasPadrao');
+    sh.getRange(1,1,1,CAMPOS_DEMANDA_PADRAO.length).setValues([CAMPOS_DEMANDA_PADRAO.map(function(c){ return c.header; })]);
   }
   return sh;
 }
@@ -99,6 +116,7 @@ function doGet(e){
   var postos = lerLinhas(getSheetPostos(), CAMPOS_POSTO);
   var itens = lerLinhas(getSheetItens(), CAMPOS_ITEM);
   var setores = lerLinhas(getSheetSetores(), CAMPOS_SETOR);
+  var demandasPadrao = lerLinhas(getSheetDemandasPadrao(), CAMPOS_DEMANDA_PADRAO);
 
   var itensPorPosto = {};
   itens.forEach(function(it){
@@ -109,7 +127,7 @@ function doGet(e){
   });
   postos.forEach(function(p){ p.itens = itensPorPosto[p.id] || []; });
 
-  return ContentService.createTextOutput(JSON.stringify({ok:true, postos:postos, setores:setores}))
+  return ContentService.createTextOutput(JSON.stringify({ok:true, postos:postos, setores:setores, demandasPadrao:demandasPadrao}))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -202,6 +220,11 @@ function doPost(e){
 
   if(body.setores){
     upsert(getSheetSetores(), CAMPOS_SETOR, body.setores, 'key');
+    return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if(body.demandasPadrao){
+    upsert(getSheetDemandasPadrao(), CAMPOS_DEMANDA_PADRAO, body.demandasPadrao, 'itemNome');
     return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
   }
 
