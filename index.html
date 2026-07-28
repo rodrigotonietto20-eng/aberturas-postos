@@ -466,6 +466,15 @@ var ITEMS_TEMPLATE = [
 ["Cadastramento dos portais de carta frete","Faturamento","Faturamento"]
 ];
 
+/* Demandas padrão por pergunta — algumas perguntas do template já nascem com uma lista de
+   checkboxes pronta pra marcar (em vez de depender de texto livre na Observação). Só afeta
+   postos criados depois dessa mudança; postos já existentes mantêm o que já tinham. Pra
+   adicionar em outra pergunta no futuro, é só criar uma chave nova aqui com o texto exato
+   do item (igual está em ITEMS_TEMPLATE). */
+var DEMANDAS_DEFAULT_POR_ITEM = {
+  'Serviços oferecidos': ['Banheiro','Troca de óleo','Wi-Fi','Borracharia','Lavanderia','Lavagem','Conveniência','Hotel','GLP','Lubrificação','Eletroposto']
+};
+
 /* ================= STATE ================= */
 var DATA = { postos: [] };
 var STATE = { tela:'lista', postoId:null, setorAtual:null };
@@ -543,7 +552,8 @@ function criarPosto(nome, bandeira, dataAbertura){
     dataAbertura: dataAbertura,
     criadoEm: Date.now(),
     itens: ITEMS_TEMPLATE.map(function(t){
-      return { id: uid(), item:t[0], fase:t[1], setor:t[2], responsavel: SETOR_RESPONSAVEL_DEFAULT[t[2]] || '', status:'Pendente', observacao:'', historico:[], anexos:[], demandas:[] };
+      var demandasPadrao = (DEMANDAS_DEFAULT_POR_ITEM[t[0]]||[]).map(function(texto){ return { id: uid(), texto: texto, feito:false }; });
+      return { id: uid(), item:t[0], fase:t[1], setor:t[2], responsavel: SETOR_RESPONSAVEL_DEFAULT[t[2]] || '', status:'Pendente', observacao:'', historico:[], anexos:[], demandas:demandasPadrao };
     })
   };
   DATA.postos.push(posto);
