@@ -1109,7 +1109,9 @@ function syncPull(){
   var url = getScriptUrl();
   if(!url || syncing) return;
   syncing = true;
-  fetch(url).then(function(r){ return r.json(); }).then(function(resp){
+  // Cache-buster (?t=...) — sem isso o fetch às vezes devolvia uma resposta antiga do cache
+  // do navegador em vez dos dados atuais, mascarando até transferências/edições já salvas.
+  fetch(url+'?t='+Date.now()).then(function(r){ return r.json(); }).then(function(resp){
     syncing = false;
     if(!resp || !resp.ok) return;
     // Setores: catálogo compartilhado — a nuvem manda no ícone/nome (pega a versão mais
@@ -1126,8 +1128,13 @@ function syncPull(){
       saveSetoresLocal();
     }
     if(!resp.postos) return;
-    // Merge simples: nuvem é a fonte da verdade quando não há dado local ainda;
-    // depois disso, mescla por ID de posto/item (local sempre vence em caso de edição não sincronizada).
+    // Merge: nuvem é a fonte da verdade quando não há dado local ainda; pra itens que já
+    // existem nos dois lados, a nuvem também vence — sem isso, um item transferido de setor
+    // (ou com status/observação mudados) em outro aparelho nunca atualizava aqui, porque o
+    // merge antigo só adicionava itens novos e nunca sobrescrevia os que já tinham sido
+    // carregados antes. Como saveData() já empurra toda edição pra nuvem na hora, a versão
+    // remota é sempre a mais recente na prática — só perde uma edição se dois aparelhos
+    // editarem o mesmo item ao mesmo tempo sem internet, caso raro e sem solução simples aqui.
     var remotos = resp.postos;
     remotos.forEach(function(rp){
       var local = getPosto(rp.id);
@@ -1135,8 +1142,9 @@ function syncPull(){
         DATA.postos.push(rp);
       } else {
         rp.itens.forEach(function(ri){
-          var li = local.itens.find(function(i){ return i.id===ri.id; });
-          if(!li) local.itens.push(ri);
+          var idx = local.itens.findIndex(function(i){ return i.id===ri.id; });
+          if(idx<0) local.itens.push(ri);
+          else local.itens[idx] = ri;
         });
       }
     });
