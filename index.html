@@ -234,7 +234,9 @@ var SETORES_DEFAULT = [
   {key:'Marketing', icone:'📣'},
   {key:'RH', icone:'👥'},
   {key:'Faturamento', icone:'💳'},
-  {key:'Comercial', icone:'🤝'}
+  {key:'Comercial', icone:'🤝'},
+  {key:'Jurídico', icone:'⚖️'},
+  {key:'P.A', icone:'🚗'}
 ];
 var SETORES = SETORES_DEFAULT.slice();
 
@@ -256,189 +258,251 @@ var SETOR_RESPONSAVEL_DEFAULT = {
   'Marketing': 'Débora / Carine',
   'RH': 'RH',
   'Faturamento': 'Eloísa',
-  'Comercial': 'Rech'
+  'Comercial': 'Rech',
+  'Jurídico': 'Maite',
+  'P.A': 'Pasquali'
 };
 
 /* item template: [texto, fase, setor]
-   Reescrito em 2026-07-29 a partir da planilha "abertura correto.xlsx" (aba "osório check
-   list", anexada pelo usuário) — substitui por completo a lista anterior de 200 itens
-   (que vinha da planilha "carazinho"). Só afeta postos criados a partir de agora; postos já
-   existentes mantêm os itens que já tinham (cada um guarda cópia própria). Setores/ícones/
-   responsáveis padrão e todo o resto do app não mudaram — só a lista de perguntas. Onde o
-   setor desta planilha divergia do template anterior, prevaleceu esta planilha (fonte
-   pedida pelo usuário como base); exceções: itens já validados manualmente em sessão
-   anterior contra esta mesma aba (Seguros patrimoniais→Logística, Montagem da Loja→Varejo/
-   Mix, Câmeras/Alarmes→Obras/Meio Ambiente, e os 2 itens de RH escondidos no bloco "▸ MKT")
-   foram mantidos como corrigidos. "Material de Pista"/"Material de Consumo" apareciam
-   duas vezes na planilha (uma vez resumido no bloco MIX, outra detalhado em COMPRAS/
-   MANUTENÇÕES) — tratados como o mesmo item, mantidos só uma vez em CD. */
+   Reescrito em 2026-07-29 a partir da planilha "abertura correto.xlsx" (aba "Gloria
+   Vacaria", versão corrigida enviada pelo usuário — a versão anterior, com abas extras,
+   estava errada) — substitui por completo a lista anterior de 166 itens. Só afeta postos
+   criados a partir de agora; postos já existentes mantêm os itens que já tinham. Essa
+   planilha é bem mais detalhada (~230 linhas) e trouxe 2 setores novos que não existiam no
+   app — confirmados com o usuário antes de criar: "Jurídico" (contratos de internet,
+   vigilância, seguro patrimonial) e "P.A" (Produtos Automotivos, antes dentro de Compras).
+   Onde a planilha listava o mesmo item em duas seções diferentes (ex: "Limpeza caixa
+   separadora" duas vezes dentro de OPERAÇÃO), mantido só uma vez; onde aparecia em setores
+   diferentes (ex: "Livro do ministério do trabalho"), tratado como intencional e mantido
+   uma vez no setor mais específico. "Bicos, mangueiras, rodilhas" e o "Material de
+   Pista/Consumo/limpeza loja" foram mantidos em CD, mesmo padrão já usado antes.
+   Revisado em 2026-07-29 contra "ABERTURA POSTOS lira.xlsx" (mesma aba "Gloria Vacaria",
+   nome de arquivo diferente) — comparação item a item confirmou que batia certinho, exceto
+   2 itens que tinham ficado de fora na reescrita: "Precisa de bicos, mangueiras e rodilhas
+   de combustível" (Obras/Manutenção) e "Marecas, rodos para brisa e pista" (Operação),
+   adicionados agora perto dos itens equivalentes. */
 var ITEMS_TEMPLATE = [
-["Horário da filial","Documentação","Direção"],
-["Serviços oferecidos","Documentação","Direção"],
-["Tipo de loja","Documentação","Direção"],
-["Contrato de locação","Documentação","Contabilidade"],
-["Contabilidade (Transição)","Documentação","Contabilidade"],
-["Cartão CNPJ","Documentação","Obras / Meio Ambiente"],
-["PPCI","Documentação","Obras / Meio Ambiente"],
+["Contrato de locação e/ou compra da unidade","Direção","Direção"],
+["Definição da data de abertura","Direção","Direção"],
+["Vai operar com qual CNPJ","Direção","Direção"],
+["Serviços disponibilizados no posto","Direção","Direção"],
+["Tipo, tamanho e modelo de loja","Direção","Direção"],
+["Se o projeto é nosso?","Direção","Direção"],
+["Classificação do posto (Urbano/Rodovia)","Direção","Direção"],
+["Definição do parque de bombas","Direção","Direção"],
+["Previsão de venda — Combustíveis, Loja e P.A","Direção","Direção"],
+["Definição do tipo do Totem","Direção","Direção"],
+["Definição do tipo e quantidade de cavaletes e lonas de preços","Direção","Direção"],
+["Definição dos preços dos combustíveis","Direção","Direção"],
+["Horário da Filial","Direção","Direção"],
+["Cartão CNPJ","Documentação","Contabilidade"],
 ["FEPAN","Documentação","Obras / Meio Ambiente"],
-["Confecção Placa FEPAN + ANP + Adesivo Bomba (CNPJ)","Documentação","Obras / Meio Ambiente"],
-["Certificado Digital/Senha","Documentação","Obras / Meio Ambiente"],
+["Alvará dos Bombeiros (PPCI)","Documentação","Obras / Meio Ambiente"],
 ["Alvará de Localização","Documentação","Obras / Meio Ambiente"],
 ["Alvará de Sanitário","Documentação","Obras / Meio Ambiente"],
-["IBAMA","Documentação","Obras / Meio Ambiente"],
 ["ANP","Documentação","Obras / Meio Ambiente"],
-["Placa preços ANP","Documentação","Obras / Meio Ambiente"],
+["IPTU","Documentação","Obras / Meio Ambiente"],
+["FISQPs disponíveis","Documentação","Obras / Meio Ambiente"],
+["Revenda de GLP — viabilidade","Documentação","Obras / Meio Ambiente"],
+["Placa GEAB","Documentação","Obras / Meio Ambiente"],
+["Detetização, desratização","Documentação","Obras / Meio Ambiente"],
+["Limpeza da caixa d'água","Documentação","Obras / Meio Ambiente"],
+["Outorga do poço artesiano","Documentação","Obras / Meio Ambiente"],
+["Certificado Digital/Senha","Documentação","T.I"],
 ["Instalação ou troca de titularidade de água e luz","Documentação","Obras / Meio Ambiente"],
 ["SASC (Tancagem, Nº de bicos, Nº Bombas, Mapa, Modelo Bombas)","Documentação","Obras / Meio Ambiente"],
 ["Contratação de empresa para coleta de resíduos","Documentação","Obras / Meio Ambiente"],
-["Seguros patrimoniais","Documentação","Logística"],
-["Cadastro de bandeira","Documentação","Obras / Meio Ambiente"],
-["Contagem de patrimônio (Relatório)","Documentação","Logística"],
-["Cadastro com distribuidoras de combustível (IBM/Senha)","Documentação","Direção"],
-["Cadastro com distribuidoras (Motoristas)","Documentação","Logística"],
-["Controle de IPTU","Documentação","Obras / Meio Ambiente"],
-["Revenda de GLP","Documentação","Obras / Meio Ambiente"],
-["Extintores","Documentação","Obras / Meio Ambiente"],
-["Bombas e aferições, teste de estanqueidade","Documentação","Obras / Meio Ambiente"],
-["Cadastro do posto no checklist fácil","Documentação","Direção"],
-["Classificação do posto (Urbano/Rodovia)","Documentação","Compras"],
-["Cadastro de preços — Loja","Documentação","Compras"],
-["Cadastro de preços — Combustíveis","Documentação","Pricing"],
+["Definição de empresa de monitoramento/câmeras","Documentação","Obras / Meio Ambiente"],
+["Contrato de internet","Documentação","Jurídico"],
+["Contrato da vigilância","Documentação","Jurídico"],
+["Contrato de seguro patrimonial","Documentação","Jurídico"],
+["Cadastro de bandeira","Logística","Direção"],
+["Cadastro com distribuidoras de combustível (IBM/Senha)","Logística","Direção"],
+["Cadastro com distribuidoras (Motoristas)","Logística","Logística"],
+["Pedidos combustíveis","Logística","Logística"],
+["Cadastro do posto no checklist fácil","Logística","Operação"],
+["Sandrito/Sandrita — abertura","Marketing","Marketing"],
+["Arco de Balão — abertura","Marketing","Marketing"],
+["Balão e Gazebo Sander","Marketing","Marketing"],
+["Rádio — anúncios, entrevistas","Marketing","Marketing"],
+["Definição de Ações App Sander","Marketing","Marketing"],
+["Outras mídias","Marketing","Marketing"],
+["Card da abertura","Marketing","Marketing"],
+["Google Maps atualizado","Marketing","Marketing"],
+["Convidados, autoridades para a abertura","Marketing","Marketing"],
+["Ofertas especiais, brindes de fornecedores","Marketing","Marketing"],
+["Confecção Placa FEPAN","Obras / Manutenção","Obras / Meio Ambiente"],
+["Confecção Placa ANP revendedor","Obras / Manutenção","Obras / Meio Ambiente"],
+["Confecção Placa GLP revendedor","Obras / Manutenção","Obras / Meio Ambiente"],
+["Confecção de cavaletes e lonas","Obras / Manutenção","Obras / Meio Ambiente"],
+["Adesivos de bombas (CNPJ, Etanol, Diesel S10 e Benzeno)","Obras / Manutenção","Obras / Meio Ambiente"],
+["Bombas — aferições e teste de estanqueidade","Obras / Manutenção","Obras / Meio Ambiente"],
+["Situação dos banheiros","Obras / Manutenção","Obras / Meio Ambiente"],
+["Mídias dos banheiros","Obras / Manutenção","Obras / Meio Ambiente"],
+["Adesivos NF Gaúcha","Obras / Manutenção","Obras / Meio Ambiente"],
+["Extintores","Obras / Manutenção","Obras / Meio Ambiente"],
+["Placas Solar","Obras / Manutenção","Obras / Meio Ambiente"],
+["Bicos, mangueiras, rodilhas","CD","CD"],
+["Precisa de bicos, mangueiras e rodilhas de combustível","Obras / Manutenção","Obras / Meio Ambiente"],
+["Local adequado para armazenamento de resíduos (contenção)","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pitoco (batente)","Obras / Manutenção","Obras / Meio Ambiente"],
+["Adesivos troca de óleo (Informações fachada, 15 itens checklist)","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pátio — entrada e saídas do posto desobstruídas","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pátio — áreas de acesso e saída estão limpas e demarcadas","Obras / Manutenção","Obras / Meio Ambiente"],
+["Adesivos, imagens, fachadas e totens","Obras / Manutenção","Obras / Meio Ambiente"],
+["Terá placa de Aproximação (outdoor)","Obras / Manutenção","Obras / Meio Ambiente"],
+["Rodovia — canteiro central com lâmpadas verdes?","Obras / Manutenção","Obras / Meio Ambiente"],
+["Estacionamento — está demarcado (placa de 15 minutos)","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pista — condições das canaletas","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pista — condições do piso","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pista — vasos de flor","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pista — pinturas dos pit stop","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pista — calibrador","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pista — pintura dos bocais e drenagens","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pista — condições do teto (forros)","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pista — filtro de diesel","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pista — extintores","Obras / Manutenção","Obras / Meio Ambiente"],
+["Pista — colunas","Obras / Manutenção","Obras / Meio Ambiente"],
+["Imagem — testeiras, luzes","Obras / Manutenção","Obras / Meio Ambiente"],
+["Imagem — fachada da loja","Obras / Manutenção","Obras / Meio Ambiente"],
+["Imagem — adesivos de porta e obrigatórios","Obras / Manutenção","Obras / Meio Ambiente"],
+["Imagem — adesivo nota fiscal Gaúcha","Obras / Manutenção","Obras / Meio Ambiente"],
+["Imagem — adesivos de colunas de pista obrigatórios","Obras / Manutenção","Obras / Meio Ambiente"],
+["Imagem — iluminação da loja/pista","Obras / Manutenção","Obras / Meio Ambiente"],
+["Imagem — troca de óleo, manutenções, iluminação, fachada, rampas","Obras / Manutenção","Obras / Meio Ambiente"],
+["Vestiários — armários","Obras / Manutenção","Obras / Meio Ambiente"],
+["Situação das bombas — vidros, lacres, blocos, iluminação, placas do fabricante","Obras / Manutenção","Obras / Meio Ambiente"],
+["Especificação do produto nas bombas","Obras / Manutenção","Obras / Meio Ambiente"],
+["Identificação externa dos banheiros","Obras / Manutenção","Obras / Meio Ambiente"],
+["Mapa e Bombas (Croqui)","Operação","Operação"],
+["Treinamento do GU","Operação","Operação"],
+["Definição do QL padrão","Operação","Operação"],
+["Definição do tipo de escala de trabalho","Operação","Operação"],
 ["Contratação de Funcionários","Operação","Operação"],
-["QL aprovado para a filial","Operação","Operação"],
-["Exames admissionais","Operação","Operação"],
-["Treinamento do Gestor","Operação","Operação"],
+["Inclusão do GU nos grupos de WhatsApp","Operação","Operação"],
+["Limpeza da caixa separadora","Operação","Operação"],
+["Limpeza de bocais, sumps de tanques e bombas","Operação","Operação"],
+["Primeira drenagem dos tanques","Operação","Operação"],
+["Aferições de todos os bicos","Operação","Operação"],
+["Contagem de patrimônio (Relatório)","Operação","Estoque / Auditoria"],
+["Inventário de Combustível","Operação","Estoque / Auditoria"],
+["Inventário de Loja e emissão de NF","Operação","Estoque / Auditoria"],
+["Solicitação e conferência de uniformes da equipe","Operação","Operação"],
+["Filial precisa de cheque troco?","Operação","Operação"],
+["Exames admissionais (ASO)","Operação","Operação"],
+["Qual banco e distância aproximada até o banco","Operação","Operação"],
 ["Treinamento operacional da equipe","Operação","Operação"],
-["Horário de operação","Operação","Operação"],
-["Localização","Operação","Operação"],
+["Localização (pesquisa no App)","Operação","Operação"],
 ["Compra de estoque","Operação","Operação"],
-["Grupo whatsapp Supervisor","Operação","Operação"],
 ["Pedido de Uniformes/EPIs","Operação","Operação"],
 ["Fichas de controle de entrega de uniformes + EPIs","Operação","Operação"],
-["Segurança posto","Operação","Operação"],
 ["Lastro de Caixa","Operação","Operação"],
-["Cheque troco","Operação","Operação"],
 ["Livro do ministério do trabalho","Operação","Operação"],
-["Planogramação de loja, PA, Food","Varejo / Mix","Varejo / Mix"],
 ["Aluguéis (Locações ativas)","Operação","Operação"],
-["Limpeza caixa separadora","Operação","Operação"],
-["Máquinas de ursos","Operação","Operação"],
-["Expositores de pista/sander/stp/centralsul","Operação","Operação"],
+["Kit densímetro completo e com certificado","Operação","Operação"],
+["Marecas, rodos para brisa e pista","Operação","Operação"],
 ["Fazer manutenções nos jardins e vasos de flor","Operação","Operação"],
-["Montagem da Loja","Varejo / Mix","Varejo / Mix"],
-["Data da montagem","Varejo / Mix","Varejo / Mix"],
-["Inventário de Combustível","Obras / Manutenção","Estoque / Auditoria"],
-["Inventário de Loja","Obras / Manutenção","Estoque / Auditoria"],
-["NF de estoque","Obras / Manutenção","Estoque / Auditoria"],
-["Pedidos combustíveis","Obras / Manutenção","Logística"],
-["Volume Comb.","Obras / Manutenção","Direção"],
-["Tamanho de loja (cluster, mobiliário)","Obras / Manutenção","Direção"],
-["Previsão de venda loja","Obras / Manutenção","Direção"],
-["Previsão de venda PA","Obras / Manutenção","Direção"],
+["Pasta de documentos no posto (planilhas obrigatórias)","Operação","Operação"],
+["Cadastro dos funcionários","RH","RH"],
+["Entrevistas e contratação","RH","RH"],
+["Divulgação de vagas","RH","RH"],
+["Uniforme (fluxo)","RH","RH"],
 ["Mobiliário Loja","Compras","Compras"],
+["Mobiliário Banheiros","Compras","Compras"],
 ["Mobiliário Sala Gerente","Compras","Compras"],
 ["Mobiliário Cozinha (Retaguarda)","Compras","Compras"],
 ["Mobiliário Vestiários","Compras","Compras"],
 ["Prateleiras de estoques loja","Compras","Compras"],
-["Prateleiras de estoques PA","Compras","Compras"],
 ["Ar condicionado","Compras","Compras"],
-["Freezer Bebidas","Compras","Compras"],
-["Freezer Cervejeiros","Compras","Compras"],
+["Freezer não alcoólicos","Compras","Compras"],
+["Freezer alcoólicos","Compras","Compras"],
 ["Freezer Retaguarda bebidas","Compras","Compras"],
 ["Freezer Retaguarda Congelados","Compras","Compras"],
+["Freezer e pedido de picolé","Compras","Compras"],
+["Cigarreira Souza Cruz","Compras","Compras"],
 ["Fornos","Compras","Compras"],
-["Máquina de café","Compras","Compras"],
 ["Micro-ondas","Compras","Compras"],
 ["Tapete capacho","Compras","Compras"],
-["Cafeteira","Compras","Compras"],
-["Bandejas food","Compras","Compras"],
-["Mobiliário Banheiros","Compras","Compras"],
-["Porta papéis, Saboneteiras, Secadores","Compras","Compras"],
-["Estufas food","Compras","Compras"],
+["Porta papéis, Saboneteiras, Secadores — cozinha (local de preparo)","Compras","Compras"],
 ["Televisores","Compras","Compras"],
 ["Tambor de Arla","Compras","Compras"],
-["Ferramentas troca de óleo","Compras","Compras"],
-["Carrinho para pingadeira (Troca de óleo)","Compras","Compras"],
-["Propulsora para Graxa","Compras","Compras"],
-["Tambores para Embalagens","Compras","Compras"],
-["Tambores para coletas de óleo descartado/filtros","Compras","Compras"],
-["Tambores para Panos","Compras","Compras"],
 ["Régua de medição","Compras","Compras"],
 ["Kit densímetro","Compras","Compras"],
-["Proveta de 1 litro","Compras","Compras"],
-["Proveta de 100 ml","Compras","Compras"],
+["Aferidor de 20 litros","Compras","Compras"],
+["Balde graduado","Compras","Compras"],
 ["Bomba de Drenagem","Compras","Compras"],
 ["Aferidor de bombas","Compras","Compras"],
 ["Calibrador de AR","Compras","Compras"],
+["Pingadeira","Compras","Compras"],
 ["Compressor","Compras","Compras"],
-["Câmeras","Obras / Manutenção","Obras / Meio Ambiente"],
-["Alarmes","Obras / Manutenção","Obras / Meio Ambiente"],
-["Expositor Lubrificante","Compras","Compras"],
-["Gaveta de caixa","Compras","Compras"],
-["Pitoco (batente)","Obras / Manutenção","Direção"],
-["Adesivos troca de óleo (Informações fachada, 15 itens checklist)","Obras / Manutenção","Direção"],
-["Material de limpeza loja (DML: vassouras, rodo, detergente, MOP, panos, materiais de uso e consumo)","CD","CD"],
-["Material de Pista (marreca, rodo pista grande, rodo para-brisa caminhão, rodo para-brisa carro, mangueira água)","CD","CD"],
-["Material de Consumo","CD","CD"],
-["Bicos, mangueiras, rodilhas","CD","CD"],
+["Gelo (Freezer)","Compras","Compras"],
 ["Tambor de Graxa (Rodovias)","Compras","Compras"],
-["Monitores","T.I","T.I"],
-["Computadores","T.I","T.I"],
+["Comandas","Compras","Compras"],
+["Cadastro Pepsico","Compras","Compras"],
+["Material de limpeza loja (Vassouras, Detergente, MOP, sabonete líquido para banheiros)","CD","CD"],
+["Material de Pista (Marreca, Rodo Pista Grande, Rodo para-brisa caminhão, Rodo para-brisa carro, mangueira água, vassourão)","CD","CD"],
+["Material de consumo (tesoura, grampeadores, grampo, dupla face, espanador, calculadora, régua, estilete, borrifador, canetas)","CD","CD"],
+["Saboneteira, papel toalha, papel higiênico e secador de mãos","Compras","Compras"],
+["Lixeiras para pista e loja","Compras","Compras"],
+["Integração com a automação","T.I","T.I"],
+["Gaveta de caixa","T.I","T.I"],
+["Computadores PDVs","T.I","T.I"],
 ["Impressora (Locação)","T.I","T.I"],
 ["Antenas Wi-fi","T.I","T.I"],
+["Links de internet, inclusive o redundante","T.I","T.I"],
 ["Contratação de internet","T.I","T.I"],
-["PAY","T.I","T.I"],
-["Tablet de Comunicação","T.I","T.I"],
+["PAY de pista","T.I","T.I"],
+["Tablets de Comunicação","T.I","T.I"],
 ["Computador retaguarda","T.I","T.I"],
 ["Automação / Telemed","T.I","T.I"],
 ["POS","T.I","T.I"],
-["Impressora fiscal","T.I","T.I"],
+["Impressoras fiscais","T.I","T.I"],
 ["Relógio ponto","T.I","T.I"],
+["VPN ativo, Nobreak testado","T.I","T.I"],
 ["Telefone móvel","T.I","T.I"],
-["Nobreak","T.I","T.I"],
-["Conveniência","Varejo / Mix","Varejo / Mix"],
-["Componentes de Café","Varejo / Mix","Varejo / Mix"],
-["Produtos Automotivos","Compras","Compras"],
-["Sorvetes e Picolés","Varejo / Mix","Varejo / Mix"],
-["Food","Varejo / Mix","Varejo / Mix"],
-["Gelo (Freezer)","Varejo / Mix","Varejo / Mix"],
-["Tabaco (Expositor)","Varejo / Mix","Varejo / Mix"],
-["Cadastro Pepsico","Compras","Compras"],
-["Pedido de Filtros","Compras","Compras"],
-["Pedido Palheta","Compras","Compras"],
-["Etiquetas de preços","Varejo / Mix","Varejo / Mix"],
-["Comandas","Compras","Compras"],
-["Limpeza","Varejo / Mix","Varejo / Mix"],
-["Recebimento de produtos","Varejo / Mix","Varejo / Mix"],
-["Montar exposição","Varejo / Mix","Varejo / Mix"],
+["Emissão do primeiro cupom com todas as formas de pagamento","T.I","T.I"],
+["Pedido CD abertura Conveniência","Varejo / Mix","Varejo / Mix"],
+["Definição das estufas","Varejo / Mix","Varejo / Mix"],
+["Máquina de café (quantas e quais)","Varejo / Mix","Varejo / Mix"],
+["Pedido de Material de Uso e Consumo","Varejo / Mix","Varejo / Mix"],
+["Manual do Consumidor","Varejo / Mix","Varejo / Mix"],
+["Pedido do Food","Varejo / Mix","Varejo / Mix"],
+["Promoções de abertura","Varejo / Mix","Varejo / Mix"],
+["Montagem da loja","Varejo / Mix","Varejo / Mix"],
+["Certificado de Boas Práticas","Varejo / Mix","Varejo / Mix"],
+["Instalação Caderno de controles","Varejo / Mix","Varejo / Mix"],
+["Termômetro","Varejo / Mix","Varejo / Mix"],
+["Pasta Food","Varejo / Mix","Varejo / Mix"],
 ["Testar equipamentos","Varejo / Mix","Varejo / Mix"],
-["Preparar food","Varejo / Mix","Varejo / Mix"],
-["Ações de abertura, promoção, ofertas especiais, brindes","Obras / Manutenção","Marketing"],
-["Definição de material de preço","Obras / Manutenção","Marketing"],
-["Sandrito","Obras / Manutenção","Marketing"],
-["Arco de Balão","Obras / Manutenção","Marketing"],
-["Balão do Sander","Obras / Manutenção","Marketing"],
-["Rádio","Obras / Manutenção","Marketing"],
-["Ações APP Sander","Obras / Manutenção","Marketing"],
-["Adesivos banheiro","Obras / Manutenção","Marketing"],
-["Adesivos NF Gaúcha","Obras / Manutenção","Marketing"],
-["Manual do Consumidor","Obras / Manutenção","Marketing"],
-["Sentinela, outdoor, adesivos, imagens, fachadas, cavaletes de preços, totens, placa de preço ANP, adesivo coluna, faixa vidros","Obras / Manutenção","Marketing"],
-["Informações portas (Não fume...)","Obras / Manutenção","Marketing"],
-["Placas de estacionamento","Obras / Manutenção","Marketing"],
-["Placa de Aproximação (outdoor)","Obras / Manutenção","Marketing"],
-["Livro do ministério do trabalho","RH","RH"],
-["Ficha de controle de EPIs","RH","RH"],
-["Carta Frete","Faturamento","Faturamento"],
-["Encaminhar cadastro das operadoras de cartão crédito","Faturamento","Faturamento"],
-["SAQUEPAGUE","Faturamento","Faturamento"],
-["Contas Bancos","Faturamento","Faturamento"],
-["Cadastramento dos portais de carta frete","Faturamento","Faturamento"],
-["Cadastro de Clientes Adquiridos (CNPJ, Cidade, Preço, Meios de Pagamento)","Comercial","Comercial"],
+["Treinamento e preparação Food","Varejo / Mix","Varejo / Mix"],
+["Etiquetas de preços","Varejo / Mix","Varejo / Mix"],
+["Exposição da loja","Varejo / Mix","Varejo / Mix"],
+["Planograma do Food e montagem do mesmo","Varejo / Mix","Varejo / Mix"],
+["Verificar compra dos estoques antigos","P.A","P.A"],
+["Prateleiras e estoque — organização","P.A","P.A"],
+["Pedido de Filtros","P.A","P.A"],
+["Pedido de Palhetas","P.A","P.A"],
+["Pedidos de Produtos Automotivos","P.A","P.A"],
+["Revenda de GLP (definir local)","P.A","P.A"],
+["Expositores de pista/sander/stp/centralsul","P.A","P.A"],
+["Ferramentas troca de óleo","P.A","P.A"],
+["Propulsora para Graxa","P.A","P.A"],
+["Cadastro de Clientes Adquiridos (antigo proprietário)","Comercial","Comercial"],
 ["Visitação dos principais clientes","Comercial","Comercial"],
+["Visitação de todas as empresas da região","Comercial","Comercial"],
+["Comercial na filial — abertura + 3 dias","Comercial","Comercial"],
+["Criação de pacotes no App (Uber, Táxis, funcionários de empresas)","Comercial","Comercial"],
+["Acompanhamento de preços da concorrência","Comercial","Comercial"],
 ["Visitação Prefeitura/Licitação","Comercial","Comercial"],
 ["Mapeamento de concorrentes e definição de preços","Comercial","Comercial"],
-["Verificar clientes de outro posto","Comercial","Comercial"]
+["Verificar clientes de outros postos","Comercial","Comercial"],
+["Carta Frete","Faturamento","Faturamento"],
+["POS de retaguarda","Faturamento","Faturamento"],
+["POS Banrisul, caso opere com CNPJ do antigo proprietário","Faturamento","Faturamento"],
+["Encaminhar cadastro das operadoras de cartão de crédito","Faturamento","Faturamento"],
+["SAQUEPAGUE","Faturamento","Faturamento"],
+["Contas Bancos","Faturamento","Faturamento"],
+["Cadastramento dos portais de carta frete","Faturamento","Faturamento"]
 ];
 
 /* Demandas padrão por pergunta — algumas perguntas do template já nascem com uma lista de
@@ -449,7 +513,7 @@ var ITEMS_TEMPLATE = [
    registrarDemandaPadrao()). Só afeta postos criados depois; postos já existentes mantêm o
    que já tinham. */
 var DEMANDAS_DEFAULT_POR_ITEM_DEFAULT = {
-  'Serviços oferecidos': ['Banheiro','Troca de óleo','Wi-Fi','Borracharia','Lavanderia','Lavagem','Conveniência','Hotel','GLP','Lubrificação','Eletroposto']
+  'Serviços disponibilizados no posto': ['Banheiro','Troca de óleo','Wi-Fi','Borracharia','Lavanderia','Lavagem','Conveniência','Hotel','GLP','Lubrificação','Eletroposto']
 };
 var DEMANDAS_DEFAULT_POR_ITEM = {};
 
@@ -547,9 +611,9 @@ function syncPushDemandasPadrao(){
   fetch(url, { method:'POST', body: JSON.stringify({ demandasPadrao: registros }) }).catch(function(){});
 }
 
-function saveData(){
+function saveData(postoId){
   localStorage.setItem('ab_data', JSON.stringify(DATA));
-  syncPush();
+  syncPush(postoId);
 }
 
 function criarPosto(nome, bandeira, dataAbertura){
@@ -565,7 +629,7 @@ function criarPosto(nome, bandeira, dataAbertura){
     })
   };
   DATA.postos.push(posto);
-  saveData();
+  saveData(posto.id);
   return posto.id;
 }
 
@@ -765,7 +829,7 @@ function wireItemRow(row, onStatusChange){
       var item = posto.itens.find(function(i){ return i.id===itemId; });
       var field = el.getAttribute('data-field');
       item[field] = el.value;
-      saveData();
+      saveData(posto.id);
       if(field==='status'){
         // Atualiza só a cor/posição deste item em vez de recarregar a tela inteira —
         // assim um item recém concluído continua visível (fica verde) mesmo com um
@@ -787,7 +851,7 @@ function wireItemRow(row, onStatusChange){
     var item = posto.itens.find(function(i){ return i.id===itemId; });
     item.historico.push({ de:item.setor, para:novoSetor, quando:Date.now() });
     item.setor = novoSetor;
-    saveData();
+    saveData(posto.id);
     render();
   });
   var anexoInput = row.querySelector('[data-action="anexar"]');
@@ -805,7 +869,7 @@ function wireItemRow(row, onStatusChange){
       var posto = getPosto(STATE.postoId);
       var item = posto.itens.find(function(i){ return i.id===itemId; });
       item.anexos.splice(idx, 1);
-      saveData();
+      saveData(posto.id);
       render();
     });
   });
@@ -818,7 +882,7 @@ function wireItemRow(row, onStatusChange){
     novoTexto = novoTexto.trim();
     if(!novoTexto){ alert('A pergunta não pode ficar em branco.'); return; }
     item.item = novoTexto;
-    saveData();
+    saveData(posto.id);
     render();
   });
   var delBtn = row.querySelector('[data-action="excluir-item"]');
@@ -836,7 +900,7 @@ function wireItemRow(row, onStatusChange){
       var posto = getPosto(STATE.postoId);
       var item = posto.itens.find(function(i){ return i.id===itemId; });
       item.demandas[idx].feito = chk.checked;
-      saveData();
+      saveData(posto.id);
       chk.closest('.demanda-row').classList.toggle('done', chk.checked);
     });
   });
@@ -846,7 +910,7 @@ function wireItemRow(row, onStatusChange){
       var posto = getPosto(STATE.postoId);
       var item = posto.itens.find(function(i){ return i.id===itemId; });
       item.demandas.splice(idx, 1);
-      saveData();
+      saveData(posto.id);
       render();
     });
   });
@@ -859,7 +923,7 @@ function wireItemRow(row, onStatusChange){
     var item = posto.itens.find(function(i){ return i.id===itemId; });
     if(!item.demandas) item.demandas = [];
     item.demandas.push({ id: uid(), texto: texto, feito:false });
-    saveData();
+    saveData(posto.id);
     registrarDemandaPadrao(item.item, texto);
     render();
   }
@@ -873,7 +937,7 @@ function wireItemRow(row, onStatusChange){
 function excluirItem(postoId, itemId){
   var posto = getPosto(postoId);
   posto.itens = posto.itens.filter(function(i){ return i.id!==itemId; });
-  saveData();
+  saveData(postoId);
   var url = getScriptUrl();
   if(url){
     fetch(url, { method:'POST', body: JSON.stringify({excluirItemId:itemId}) }).catch(function(){});
@@ -896,7 +960,7 @@ function enviarAnexo(itemId, file, row){
       var item = posto.itens.find(function(i){ return i.id===itemId; });
       if(!item.anexos) item.anexos = [];
       item.anexos.push({ nome:file.name, url:resp.url, tipo:file.type, quando:Date.now() });
-      saveData();
+      saveData(posto.id);
       render();
     }).catch(function(){
       if(statusEl) statusEl.textContent = 'Falha ao enviar '+file.name+'. Tente novamente.';
@@ -1061,7 +1125,7 @@ document.getElementById('ni-confirmar').addEventListener('click', function(){
     id: uid(), item: texto, fase: 'Adicional', setor: STATE.setorAtual,
     responsavel:'', status:'Pendente', observacao:'', historico:[], anexos:[], demandas:[]
   });
-  saveData();
+  saveData(posto.id);
   modalNovoItem.classList.remove('open');
   render();
 });
@@ -1113,18 +1177,30 @@ function atualizarSyncStatus(){
 
 /* ================= SYNC (Google Sheets via Apps Script) ================= */
 var syncing = false;
-function syncPush(){
+// Conta pushes ainda em andamento. Antes, toda edição reenviava DATA.postos inteiro (todos
+// os postos, com todos os itens) — o upsert() no backend apagava e reescrevia centenas de
+// linhas a cada campo editado, então era comum o pull automático (a cada 2 min, "nuvem
+// sempre vence") ler a planilha no meio de uma escrita ainda em andamento e desfazer uma
+// transferência/edição recém-feita, exigindo tentar salvar várias vezes. Agora: 1) cada
+// edição envia só o posto que mudou (bem mais rápido no backend) e 2) syncPull() nunca roda
+// enquanto houver push pendente, pra nunca ler um estado parcial.
+var pendingPushes = 0;
+function syncPush(postoId){
   var url = getScriptUrl();
   if(!url) return;
+  var postos = postoId ? [getPosto(postoId)].filter(Boolean) : DATA.postos;
+  if(!postos.length) return;
+  pendingPushes++;
   fetch(url, {
     method:'POST',
-    body: JSON.stringify({ postos: DATA.postos })
-  }).catch(function(){ /* falha silenciosa, dado já está salvo local */ });
+    body: JSON.stringify({ postos: postos })
+  }).catch(function(){ /* falha silenciosa, dado já está salvo local */ })
+    .then(function(){ pendingPushes--; });
 }
 
 function syncPull(){
   var url = getScriptUrl();
-  if(!url || syncing) return;
+  if(!url || syncing || pendingPushes>0) return;
   syncing = true;
   // Cache-buster (?t=...) — sem isso o fetch às vezes devolvia uma resposta antiga do cache
   // do navegador em vez dos dados atuais, mascarando até transferências/edições já salvas.
