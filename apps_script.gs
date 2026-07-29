@@ -131,27 +131,41 @@ function doGet(e){
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+// Atualiza em cima da linha existente (getRange().setValues(), rápido) em vez do padrão
+// antigo de apagar todas as linhas com ID conhecido e reinserir tudo no fim (deleteRow() em
+// loop, que fica muito lento com centenas de linhas — cada edição de um posto de ~220 itens
+// reescrevia a aba inteira). Só faz append pros IDs que realmente ainda não existem na
+// planilha. Efeito colateral bom: a ordem das linhas já existentes deixa de embaralhar a
+// cada save, então dá pra editar a planilha manualmente sem os itens pularem de lugar.
 function upsert(sheet, campos, registros, idKey){
   if(!registros.length) return;
   var headers = sheet.getDataRange().getValues()[0];
-  var idsNovos = {};
-  registros.forEach(function(r){ idsNovos[r[idKey]] = true; });
-
-  var data = sheet.getDataRange().getValues();
   var idCol = headers.indexOf(campos[0].header);
   if(idCol<0) idCol = 0;
-  for(var i=data.length-1;i>=1;i--){
-    if(idsNovos[data[i][idCol]]) sheet.deleteRow(i+1);
+
+  var data = sheet.getDataRange().getValues();
+  var linhaPorId = {};
+  for(var i=1;i<data.length;i++){
+    if(data[i][idCol]) linhaPorId[data[i][idCol]] = i+1; // linha real na planilha (1-based)
   }
 
-  var linhas = registros.map(function(r){
-    return campos.map(function(c){
+  var novos = [];
+  registros.forEach(function(r){
+    var linha = campos.map(function(c){
       var val = r[c.key];
       if(c.json) return JSON.stringify(val||[]);
       return val==null ? '' : val;
     });
+    var linhaExistente = linhaPorId[r[idKey]];
+    if(linhaExistente){
+      sheet.getRange(linhaExistente, 1, 1, campos.length).setValues([linha]);
+    } else {
+      novos.push(linha);
+    }
   });
-  sheet.getRange(sheet.getLastRow()+1, 1, linhas.length, campos.length).setValues(linhas);
+  if(novos.length){
+    sheet.getRange(sheet.getLastRow()+1, 1, novos.length, campos.length).setValues(novos);
+  }
 }
 
 function excluirPosto(postoId){
