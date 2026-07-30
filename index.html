@@ -128,6 +128,7 @@ textarea.obs{width:100%;min-height:34px;resize:vertical;margin-top:4px;}
 .setor-row input[type=text]{padding:6px 8px;font-size:13px;}
 .setor-row .sr-icone{width:44px;text-align:center;flex-shrink:0;}
 .setor-row .sr-nome{flex:1;min-width:0;}
+.setor-row .sr-salvar,.setor-row .sr-excluir{flex-shrink:0;}
 .setor-row .sr-salvar{flex-shrink:0;}
 .link-config{color:var(--pri2);}
 </style>
@@ -151,7 +152,7 @@ textarea.obs{width:100%;min-height:34px;resize:vertical;margin-top:4px;}
 <!-- Modal: novo posto -->
 <div class="modal-bg" id="modal-novo-posto">
   <div class="modal">
-    <h3>Novo Posto</h3>
+    <h3 id="np-titulo">Novo Posto</h3>
     <label>Nome do posto</label>
     <input type="text" id="np-nome" placeholder="Ex: Canela">
     <label>Bandeira</label>
@@ -575,6 +576,26 @@ function editarSetor(oldKey, novoNome, novoIcone){
   syncPushSetores();
 }
 
+// Bloqueia exclusão se alguma pergunta (de qualquer posto) ainda estiver nesse setor —
+// excluir sem migrar deixaria itens "orfãos" presos num setor que não existe mais nos
+// cards do Dashboard. O usuário precisa transferir as perguntas antes (mesmo botão 🔀
+// Transferir já existente em cada item).
+function excluirSetor(key){
+  var emUso = DATA.postos.some(function(p){ return p.itens.some(function(it){ return it.setor===key; }); });
+  if(emUso){
+    alert('Não é possível excluir "'+key+'": ainda existem perguntas nesse setor em pelo menos um posto. Transfira essas perguntas pra outro setor antes de excluir.');
+    return;
+  }
+  if(!confirm('Excluir o setor "'+key+'"? Essa ação não pode ser desfeita.')) return;
+  SETORES = SETORES.filter(function(s){ return s.key!==key; });
+  delete SETOR_RESPONSAVEL_DEFAULT[key];
+  saveSetoresLocal();
+  var url = getScriptUrl();
+  if(url){
+    fetch(url, { method:'POST', body: JSON.stringify({excluirSetorKey:key}) }).catch(function(){});
+  }
+}
+
 function syncPushSetores(){
   var url = getScriptUrl();
   if(!url) return;
@@ -737,7 +758,10 @@ function renderDashboard(){
     + '</div>';
 
   html += '<button class="btn btn-outline btn-block" id="btn-ver-geral" style="margin-bottom:10px">📋 Ver Visão Geral de Todas as Perguntas</button>';
-  html += '<div style="text-align:right;margin-bottom:14px"><a href="#" id="link-setores" class="link-config" style="font-size:12.5px">🗂️ gerenciar setores</a></div>';
+  html += '<div style="text-align:right;margin-bottom:14px">'
+    + '<a href="#" id="link-editar-posto" class="link-config" style="font-size:12.5px;margin-right:14px">✏️ editar posto</a>'
+    + '<a href="#" id="link-setores" class="link-config" style="font-size:12.5px">🗂️ gerenciar setores</a>'
+    + '</div>';
 
   html += '<div class="setor-grid">';
   SETORES.forEach(function(s){
@@ -767,6 +791,7 @@ function renderDashboard(){
     render();
   });
   document.getElementById('link-setores').addEventListener('click', function(e){ e.preventDefault(); abrirSetores(); });
+  document.getElementById('link-editar-posto').addEventListener('click', function(e){ e.preventDefault(); abrirEditarPosto(posto); });
 }
 
 var filtroStatus = 'todos';
@@ -1074,20 +1099,45 @@ btnBack.addEventListener('click', function(){
   render();
 });
 
-/* ================= MODAL NOVO POSTO ================= */
+/* ================= MODAL NOVO POSTO / EDITAR POSTO ================= */
+// Mesmo modal serve pra criar e pra editar (nome/bandeira/data) — controlado por
+// postoEditandoId: null = modo "Novo Posto", preenchido = modo "Editar Posto".
 var modalNovoPosto = document.getElementById('modal-novo-posto');
+var postoEditandoId = null;
 btnNovoPosto.addEventListener('click', function(){
+  postoEditandoId = null;
+  document.getElementById('np-titulo').textContent = 'Novo Posto';
+  document.getElementById('np-confirmar').textContent = 'Criar checklist';
   document.getElementById('np-nome').value='';
   document.getElementById('np-bandeira').value='';
   document.getElementById('np-data').value='';
   modalNovoPosto.classList.add('open');
 });
+function abrirEditarPosto(posto){
+  postoEditandoId = posto.id;
+  document.getElementById('np-titulo').textContent = 'Editar Posto';
+  document.getElementById('np-confirmar').textContent = 'Salvar alterações';
+  document.getElementById('np-nome').value = posto.nome || '';
+  document.getElementById('np-bandeira').value = posto.bandeira || '';
+  document.getElementById('np-data').value = posto.dataAbertura || '';
+  modalNovoPosto.classList.add('open');
+}
 document.getElementById('np-cancel').addEventListener('click', function(){ modalNovoPosto.classList.remove('open'); });
 document.getElementById('np-confirmar').addEventListener('click', function(){
   var nome = document.getElementById('np-nome').value.trim();
   if(!nome){ alert('Digite o nome do posto.'); return; }
   var bandeira = document.getElementById('np-bandeira').value.trim();
   var dataAbertura = document.getElementById('np-data').value;
+  if(postoEditandoId){
+    var posto = getPosto(postoEditandoId);
+    posto.nome = nome;
+    posto.bandeira = bandeira;
+    posto.dataAbertura = dataAbertura;
+    saveData(posto.id);
+    modalNovoPosto.classList.remove('open');
+    render();
+    return;
+  }
   var id = criarPosto(nome, bandeira, dataAbertura);
   modalNovoPosto.classList.remove('open');
   STATE.postoId = id;
@@ -1145,6 +1195,7 @@ function renderSetoresLista(){
       + '<input type="text" class="sr-icone" value="'+escapeAttr(s.icone)+'">'
       + '<input type="text" class="sr-nome" value="'+escapeAttr(s.key)+'">'
       + '<button class="btn btn-sm sr-salvar">Salvar</button>'
+      + '<button class="btn btn-sm del-btn sr-excluir" type="button">🗑️</button>'
       + '</div>';
   }).join('');
   el.querySelectorAll('.setor-row').forEach(function(row){
@@ -1153,6 +1204,12 @@ function renderSetoresLista(){
       var novoIcone = row.querySelector('.sr-icone').value;
       var novoNome = row.querySelector('.sr-nome').value;
       editarSetor(oldKey, novoNome, novoIcone);
+      renderSetoresLista();
+      render();
+    });
+    row.querySelector('.sr-excluir').addEventListener('click', function(){
+      var key = row.getAttribute('data-key');
+      excluirSetor(key);
       renderSetoresLista();
       render();
     });

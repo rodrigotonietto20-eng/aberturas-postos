@@ -187,6 +187,14 @@ function excluirItemPorId(itemId){
   for(var i=data.length-1;i>=1;i--){ if(data[i][0]===itemId) sheet.deleteRow(i+1); }
 }
 
+// Setor excluído pelo app (botão 🗑️ dentro de Gerenciar Setores). Precisa de endpoint
+// próprio pelo mesmo motivo de excluirItemPorId: o upsert() normal nunca apaga linha.
+function excluirSetorPorKey(key){
+  var sheet = getSheetSetores();
+  var data = sheet.getDataRange().getValues();
+  for(var i=data.length-1;i>=1;i--){ if(data[i][0]===key) sheet.deleteRow(i+1); }
+}
+
 function getOrCreatePastaRaizAnexos(){
   var nome = 'Abertura de Postos - Anexos';
   var it = DriveApp.getFoldersByName(nome);
@@ -229,6 +237,11 @@ function doPost(e){
 
   if(body.excluirItemId){
     excluirItemPorId(body.excluirItemId);
+    return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if(body.excluirSetorKey){
+    excluirSetorPorKey(body.excluirSetorKey);
     return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
   }
 
