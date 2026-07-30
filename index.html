@@ -46,6 +46,7 @@ body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;backgro
 .progress-bar{height:8px;border-radius:6px;background:var(--border);overflow:hidden;display:flex;}
 .progress-bar div{height:100%;}
 .posto-card .pct{font-size:12px;color:var(--muted);margin-top:6px;}
+.posto-obs{font-size:12px;color:var(--pri-deep);background:var(--pri-light);border-left:3px solid var(--pri2);border-radius:6px;padding:5px 8px;margin-bottom:10px;}
 .empty-state{text-align:center;color:var(--muted);padding:40px 20px;}
 
 /* ===== Dashboard ===== */
@@ -86,6 +87,9 @@ select, input[type=text], textarea{
 .status-N_A{color:var(--na);background:var(--na-bg);border-color:var(--na);}
 input.responsavel{width:150px;}
 textarea.obs{width:100%;min-height:34px;resize:vertical;margin-top:4px;}
+.np-obs-wrap{background:var(--pri-light);border:1.5px solid var(--pri3);border-radius:10px;padding:10px 12px;margin-top:14px;}
+.np-obs-wrap label{margin:0 0 6px;font-weight:700;color:var(--pri-deep);}
+.np-obs-wrap textarea{width:100%;resize:vertical;}
 .transfer-btn{background:var(--pri-light);color:var(--pri2);border:1px solid var(--pri3);}
 .transfer-row{margin-top:6px;display:none;gap:8px;align-items:center;}
 .transfer-row.open{display:flex;flex-wrap:wrap;}
@@ -159,6 +163,10 @@ textarea.obs{width:100%;min-height:34px;resize:vertical;margin-top:4px;}
     <input type="text" id="np-bandeira" placeholder="Ex: Rodoil, Vibra, Ipiranga">
     <label>Data de abertura prevista</label>
     <input type="date" id="np-data">
+    <div class="np-obs-wrap">
+      <label>📝 Observação</label>
+      <textarea id="np-obs" placeholder="Um pequeno descritivo sobre este posto..." rows="3"></textarea>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-outline btn-block" id="np-cancel">Cancelar</button>
       <button class="btn btn-block" id="np-confirmar">Criar checklist</button>
@@ -657,12 +665,13 @@ function saveData(postoId){
   syncPush(postoId);
 }
 
-function criarPosto(nome, bandeira, dataAbertura){
+function criarPosto(nome, bandeira, dataAbertura, observacao){
   var posto = {
     id: uid(),
     nome: nome,
     bandeira: bandeira,
     dataAbertura: dataAbertura,
+    observacao: observacao || '',
     criadoEm: Date.now(),
     itens: ITEMS_TEMPLATE.map(function(t){
       var demandasPadrao = (DEMANDAS_DEFAULT_POR_ITEM[t[0]]||[]).map(function(texto){ return { id: uid(), texto: texto, feito:false }; });
@@ -724,6 +733,7 @@ function renderListaPostos(){
         + '<button class="posto-del-btn" data-action="excluir-posto" data-id="'+p.id+'" title="Excluir posto">🗑️</button>'
         + '<h3>'+escapeHtml(p.nome)+'</h3>'
         + '<div class="meta">'+escapeHtml(p.bandeira||'—')+' · abertura '+formatDate(p.dataAbertura)+'</div>'
+        + (p.observacao ? '<div class="posto-obs">📝 '+escapeHtml(p.observacao)+'</div>' : '')
         + '<div class="progress-bar">'
           + '<div style="width:'+(c['Concluído']/total*100)+'%;background:var(--ok)"></div>'
           + '<div style="width:'+(c['Em Andamento']/total*100)+'%;background:var(--andamento)"></div>'
@@ -1131,6 +1141,7 @@ btnNovoPosto.addEventListener('click', function(){
   document.getElementById('np-nome').value='';
   document.getElementById('np-bandeira').value='';
   document.getElementById('np-data').value='';
+  document.getElementById('np-obs').value='';
   modalNovoPosto.classList.add('open');
 });
 function abrirEditarPosto(posto){
@@ -1140,6 +1151,7 @@ function abrirEditarPosto(posto){
   document.getElementById('np-nome').value = posto.nome || '';
   document.getElementById('np-bandeira').value = posto.bandeira || '';
   document.getElementById('np-data').value = posto.dataAbertura || '';
+  document.getElementById('np-obs').value = posto.observacao || '';
   modalNovoPosto.classList.add('open');
 }
 document.getElementById('np-cancel').addEventListener('click', function(){ modalNovoPosto.classList.remove('open'); });
@@ -1148,17 +1160,19 @@ document.getElementById('np-confirmar').addEventListener('click', function(){
   if(!nome){ alert('Digite o nome do posto.'); return; }
   var bandeira = document.getElementById('np-bandeira').value.trim();
   var dataAbertura = document.getElementById('np-data').value;
+  var observacao = document.getElementById('np-obs').value.trim();
   if(postoEditandoId){
     var posto = getPosto(postoEditandoId);
     posto.nome = nome;
     posto.bandeira = bandeira;
     posto.dataAbertura = dataAbertura;
+    posto.observacao = observacao;
     saveData(posto.id);
     modalNovoPosto.classList.remove('open');
     render();
     return;
   }
-  var id = criarPosto(nome, bandeira, dataAbertura);
+  var id = criarPosto(nome, bandeira, dataAbertura, observacao);
   modalNovoPosto.classList.remove('open');
   STATE.postoId = id;
   STATE.tela = 'dashboard';

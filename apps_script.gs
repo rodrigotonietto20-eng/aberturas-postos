@@ -4,7 +4,7 @@
  * COMO USAR:
  * 1. Crie uma nova planilha Google Sheets (separada das planilhas do CRM e do Horas Extras).
  * 2. Crie duas abas com esses nomes exatos:
- *    - "Postos"  -> cabeçalho linha 1: ID | Nome | Bandeira | DataAbertura | CriadoEm
+ *    - "Postos"  -> cabeçalho linha 1: ID | Nome | Bandeira | DataAbertura | CriadoEm | Observacao
  *    - "Itens"   -> cabeçalho linha 1: ID | PostoID | Item | Fase | Setor | Responsavel | Status | Observacao | Historico | Anexos | Demandas
  *    (se a aba "Itens" já existir sem alguma coluna nova, adicione manualmente antes de
  *    reimplantar — sem isso o app ainda funciona (grava na posição certa mesmo sem cabeçalho
@@ -31,7 +31,8 @@ var CAMPOS_POSTO = [
   {header:'Nome',         key:'nome'},
   {header:'Bandeira',     key:'bandeira'},
   {header:'DataAbertura', key:'dataAbertura', date:true},
-  {header:'CriadoEm',     key:'criadoEm', num:true}
+  {header:'CriadoEm',     key:'criadoEm', num:true},
+  {header:'Observacao',   key:'observacao'}
 ];
 
 var CAMPOS_ITEM = [
