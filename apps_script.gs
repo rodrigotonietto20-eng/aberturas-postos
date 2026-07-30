@@ -260,7 +260,7 @@ function doPost(e){
   if(!postos.length) return ContentService.createTextOutput(JSON.stringify({ok:true}));
 
   var postosSemItens = postos.map(function(p){
-    return {id:p.id, nome:p.nome, bandeira:p.bandeira, dataAbertura:p.dataAbertura, criadoEm:p.criadoEm};
+    return {id:p.id, nome:p.nome, bandeira:p.bandeira, dataAbertura:p.dataAbertura, criadoEm:p.criadoEm, observacao:p.observacao};
   });
   upsert(getSheetPostos(), CAMPOS_POSTO, postosSemItens, 'id');
 
