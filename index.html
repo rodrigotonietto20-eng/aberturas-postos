@@ -1421,18 +1421,34 @@ function syncPull(){
     // remota é sempre a mais recente na prática — só perde uma edição se dois aparelhos
     // editarem o mesmo item ao mesmo tempo sem internet, caso raro e sem solução simples aqui.
     var remotos = resp.postos;
+    var idsRemotos = {};
     remotos.forEach(function(rp){
+      idsRemotos[rp.id] = true;
       var local = getPosto(rp.id);
       if(!local){
         DATA.postos.push(rp);
       } else {
+        var idsRemotosItens = {};
         rp.itens.forEach(function(ri){
+          idsRemotosItens[ri.id] = true;
           var idx = local.itens.findIndex(function(i){ return i.id===ri.id; });
           if(idx<0) local.itens.push(ri);
           else local.itens[idx] = ri;
         });
+        // Remove itens que já não existem na nuvem (excluídos por outro aparelho) — sem
+        // isso, um item excluído (inclusive uma cópia de pergunta compartilhada, ver
+        // "Compartilhar pergunta") em outro aparelho continuava aparecendo pra sempre aqui,
+        // porque o merge só adicionava/atualizava, nunca removia.
+        local.itens = local.itens.filter(function(i){ return idsRemotosItens[i.id]; });
       }
     });
+    // Remove postos que já não existem na nuvem (excluídos por outro aparelho) — mesmo
+    // motivo do filtro de itens acima: excluirPosto() já apaga de verdade no backend na
+    // hora, então um posto ausente na resposta da nuvem significa que foi excluído por
+    // alguém, não que este aparelho ainda não sincronizou. Sem esse filtro, quem já tinha o
+    // posto carregado localmente continuava vendo ele pra sempre, mesmo após outro aparelho
+    // excluir.
+    DATA.postos = DATA.postos.filter(function(p){ return idsRemotos[p.id]; });
     localStorage.setItem('ab_data', JSON.stringify(DATA));
     render();
   }).catch(function(){ syncing = false; });
