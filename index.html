@@ -113,7 +113,8 @@ textarea.obs{width:100%;min-height:34px;resize:vertical;margin-top:4px;}
 .demanda-row .demanda-txt{flex:1;color:var(--pendente);}
 .demanda-row.done{background:var(--ok-bg);}
 .demanda-row.done .demanda-txt{color:var(--ok);}
-.demanda-check{accent-color:var(--ok);width:16px;height:16px;}
+.demanda-check{accent-color:var(--ok);width:16px;height:16px;flex-shrink:0;}
+.demanda-obs{width:120px;flex-shrink:0;font-size:12px;padding:4px 6px;}
 .demanda-del{border:none;background:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0 2px;line-height:1;}
 .demanda-del:hover{color:#c0392b;}
 .demanda-add{display:flex;gap:6px;}
@@ -700,7 +701,7 @@ function criarPosto(nome, bandeira, dataAbertura, observacao){
         var todosSetores = [t[2]].concat(t[3]||[]);
         var grupoId = todosSetores.length>1 ? uid() : null;
         todosSetores.forEach(function(setor){
-          var demandasPadrao = (DEMANDAS_DEFAULT_POR_ITEM[t[0]]||[]).map(function(texto){ return { id: uid(), texto: texto, feito:false }; });
+          var demandasPadrao = (DEMANDAS_DEFAULT_POR_ITEM[t[0]]||[]).map(function(texto){ return { id: uid(), texto: texto, feito:false, obs:'' }; });
           out.push({ id: uid(), item:t[0], fase:t[1], setor:setor, responsavel: SETOR_RESPONSAVEL_DEFAULT[setor] || '', status:'Pendente', observacao:'', historico:[], anexos:[], demandas:demandasPadrao, grupoId: grupoId });
         });
       });
@@ -901,6 +902,7 @@ function itemRowHtml(item){
       + (demandas.length ? '<div class="demandas-list">'+demandas.map(function(d, idx){
           return '<label class="demanda-row'+(d.feito?' done':'')+'"><input type="checkbox" class="demanda-check" data-idx="'+idx+'"'+(d.feito?' checked':'')+'>'
             + '<span class="demanda-txt">'+escapeHtml(d.texto)+'</span>'
+            + '<input type="text" class="demanda-obs" data-idx="'+idx+'" placeholder="obs..." value="'+escapeAttr(d.obs||'')+'">'
             + '<button type="button" class="demanda-del" data-idx="'+idx+'" title="Remover demanda">✕</button></label>';
         }).join('')+'</div>' : '')
       + '<div class="demanda-add"><input type="text" class="demanda-input" placeholder="+ nova demanda..."><button type="button" class="btn btn-sm demanda-add-btn">Adicionar</button></div>'
@@ -1020,6 +1022,15 @@ function wireItemRow(row, onStatusChange){
       render();
     });
   });
+  row.querySelectorAll('.demanda-obs').forEach(function(inp){
+    inp.addEventListener('blur', function(){
+      var idx = Number(inp.getAttribute('data-idx'));
+      var posto = getPosto(STATE.postoId);
+      var item = posto.itens.find(function(i){ return i.id===itemId; });
+      item.demandas[idx].obs = inp.value;
+      saveData(posto.id);
+    });
+  });
   var demInput = row.querySelector('.demanda-input');
   var demAddBtn = row.querySelector('.demanda-add-btn');
   function adicionarDemanda(){
@@ -1028,7 +1039,7 @@ function wireItemRow(row, onStatusChange){
     var posto = getPosto(STATE.postoId);
     var item = posto.itens.find(function(i){ return i.id===itemId; });
     if(!item.demandas) item.demandas = [];
-    item.demandas.push({ id: uid(), texto: texto, feito:false });
+    item.demandas.push({ id: uid(), texto: texto, feito:false, obs:'' });
     saveData(posto.id);
     registrarDemandaPadrao(item.item, texto);
     render();
@@ -1294,8 +1305,10 @@ document.getElementById('cp-confirmar').addEventListener('click', function(){
   if(!item.grupoId) item.grupoId = uid();
   selecionados.forEach(function(setorNovo){
     posto.itens.push({
+      // Observação vai junto na cópia nova — é a mesma pergunta, então o contexto já
+      // escrito no setor de origem também vale pro setor que está recebendo ela agora.
       id: uid(), item: item.item, fase: item.fase, setor: setorNovo,
-      responsavel: SETOR_RESPONSAVEL_DEFAULT[setorNovo] || '', status:'Pendente', observacao:'',
+      responsavel: SETOR_RESPONSAVEL_DEFAULT[setorNovo] || '', status:'Pendente', observacao: item.observacao || '',
       historico:[], anexos:[], demandas:[], grupoId: item.grupoId
     });
   });
