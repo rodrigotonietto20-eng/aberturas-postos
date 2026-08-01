@@ -95,8 +95,12 @@ textarea.obs{width:100%;min-height:34px;resize:vertical;margin-top:4px;}
 .transfer-row.open{display:flex;flex-wrap:wrap;}
 .transfer-hist{font-size:11px;color:var(--muted);margin-top:5px;}
 .anexo-btn{background:var(--pri-light);color:var(--pri2);border:1px solid var(--pri3);cursor:pointer;}
+.share-btn{background:var(--pri-light);color:var(--pri2);border:1px solid var(--pri3);}
 .edit-btn{background:#fff;color:var(--muted);border:1px solid var(--border);}
 .del-btn{background:var(--pendente-bg);color:var(--pendente);border:1px solid var(--pendente);}
+.link-badge{font-size:11px;color:var(--pri2);margin-bottom:6px;}
+.compartilhar-lista{max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin:8px 0 4px;}
+.compartilhar-row{display:flex;align-items:center;gap:8px;font-size:13.5px;}
 .anexo-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
 .anexo-chip{display:inline-flex;align-items:center;gap:4px;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:3px 8px;font-size:12px;}
 .anexo-chip a{color:var(--pri2);text-decoration:none;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -196,6 +200,20 @@ textarea.obs{width:100%;min-height:34px;resize:vertical;margin-top:4px;}
     <div class="modal-actions">
       <button class="btn btn-outline btn-block" id="ni-cancel">Cancelar</button>
       <button class="btn btn-block" id="ni-confirmar">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: compartilhar pergunta com outros setores -->
+<div class="modal-bg" id="modal-compartilhar">
+  <div class="modal" style="max-width:420px">
+    <h3>🔗 Compartilhar pergunta</h3>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:6px" id="cp-pergunta-texto"></div>
+    <label>Compartilhar também com (cada setor marcado ganha sua própria cópia, com status independente):</label>
+    <div id="cp-lista" class="compartilhar-lista"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-block" id="cp-cancel">Cancelar</button>
+      <button class="btn btn-block" id="cp-confirmar">Compartilhar</button>
     </div>
   </div>
 </div>
@@ -673,14 +691,33 @@ function criarPosto(nome, bandeira, dataAbertura, observacao){
     dataAbertura: dataAbertura,
     observacao: observacao || '',
     criadoEm: Date.now(),
-    itens: ITEMS_TEMPLATE.map(function(t){
-      var demandasPadrao = (DEMANDAS_DEFAULT_POR_ITEM[t[0]]||[]).map(function(texto){ return { id: uid(), texto: texto, feito:false }; });
-      return { id: uid(), item:t[0], fase:t[1], setor:t[2], responsavel: SETOR_RESPONSAVEL_DEFAULT[t[2]] || '', status:'Pendente', observacao:'', historico:[], anexos:[], demandas:demandasPadrao };
-    })
+    // t[3], se presente, é uma lista de setores extras — a pergunta nasce já multi-setor
+    // (uma cópia por setor, mesmo grupoId, status independente cada). Ver "Compartilhar
+    // pergunta" pra fazer isso manualmente depois de o posto já existir.
+    itens: (function(){
+      var out = [];
+      ITEMS_TEMPLATE.forEach(function(t){
+        var todosSetores = [t[2]].concat(t[3]||[]);
+        var grupoId = todosSetores.length>1 ? uid() : null;
+        todosSetores.forEach(function(setor){
+          var demandasPadrao = (DEMANDAS_DEFAULT_POR_ITEM[t[0]]||[]).map(function(texto){ return { id: uid(), texto: texto, feito:false }; });
+          out.push({ id: uid(), item:t[0], fase:t[1], setor:setor, responsavel: SETOR_RESPONSAVEL_DEFAULT[setor] || '', status:'Pendente', observacao:'', historico:[], anexos:[], demandas:demandasPadrao, grupoId: grupoId });
+        });
+      });
+      return out;
+    })()
   };
   DATA.postos.push(posto);
   saveData(posto.id);
   return posto.id;
+}
+
+// Itens da mesma pergunta compartilhados com outros setores (mesmo grupoId), do mesmo
+// posto. Cada um tem status/responsável/observação independentes — só o texto e edições
+// de pergunta se propagam entre eles.
+function itensLigados(posto, item){
+  if(!item.grupoId) return [];
+  return posto.itens.filter(function(i){ return i.grupoId===item.grupoId && i.id!==item.id; });
 }
 
 function getPosto(id){ return DATA.postos.find(function(p){ return p.id===id; }); }
@@ -830,15 +867,19 @@ var filtroStatusGeral = 'todos';
 function itemRowHtml(item){
   var anexos = item.anexos || [];
   var demandas = item.demandas || [];
+  var posto = getPosto(STATE.postoId);
+  var ligados = posto ? itensLigados(posto, item) : [];
   return '<div class="item-row'+(item.status==='Concluído'?' done':'')+'" data-item="'+item.id+'">'
     + '<div class="item-title">'+escapeHtml(item.item)+'</div>'
     + '<div class="item-fase">'+escapeHtml(item.fase)+'</div>'
+    + (ligados.length ? '<div class="link-badge">🔗 Compartilhada com: '+ligados.map(function(li){ return escapeHtml(li.setor); }).join(', ')+'</div>' : '')
     + '<div class="item-controls">'
       + '<select class="status-select ' + statusClass(item.status) + '" data-field="status">'
         + STATUS_LIST.map(function(s){ return '<option value="'+s+'"'+(s===item.status?' selected':'')+'>'+s+'</option>'; }).join('')
       + '</select>'
       + '<input type="text" class="responsavel" data-field="responsavel" placeholder="Responsável" value="'+escapeAttr(item.responsavel)+'">'
       + '<button class="btn btn-sm transfer-btn" data-action="toggle-transfer">🔀 Transferir</button>'
+      + '<button class="btn btn-sm share-btn" data-action="compartilhar">🔗 Compartilhar</button>'
       + '<label class="btn btn-sm anexo-btn">📎 Anexar<input type="file" class="anexo-input" data-action="anexar" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" hidden></label>'
       + '<button class="btn btn-sm edit-btn" data-action="editar-item">✏️ Editar</button>'
       + '<button class="btn btn-sm del-btn" data-action="excluir-item">🗑️ Excluir</button>'
@@ -937,14 +978,24 @@ function wireItemRow(row, onStatusChange){
     novoTexto = novoTexto.trim();
     if(!novoTexto){ alert('A pergunta não pode ficar em branco.'); return; }
     item.item = novoTexto;
+    // Pergunta compartilhada (mesmo grupoId) — o texto é o mesmo em todos os setores,
+    // então a edição propaga pra todas as cópias.
+    if(item.grupoId){
+      itensLigados(posto, item).forEach(function(li){ li.item = novoTexto; });
+    }
     saveData(posto.id);
     render();
   });
+  var shareBtn = row.querySelector('[data-action="compartilhar"]');
+  if(shareBtn) shareBtn.addEventListener('click', function(){ abrirCompartilhar(itemId); });
   var delBtn = row.querySelector('[data-action="excluir-item"]');
   if(delBtn) delBtn.addEventListener('click', function(){
     var posto = getPosto(STATE.postoId);
     var item = posto.itens.find(function(i){ return i.id===itemId; });
-    if(!confirm('Excluir a pergunta "'+item.item+'"? Essa ação não pode ser desfeita.')) return;
+    var msg = item.grupoId
+      ? 'Excluir a pergunta "'+item.item+'" só deste setor? As cópias compartilhadas com outros setores continuam.'
+      : 'Excluir a pergunta "'+item.item+'"? Essa ação não pode ser desfeita.';
+    if(!confirm(msg)) return;
     excluirItem(STATE.postoId, itemId);
     render();
   });
@@ -1211,6 +1262,44 @@ document.getElementById('ni-confirmar').addEventListener('click', function(){
   });
   saveData(posto.id);
   modalNovoItem.classList.remove('open');
+  render();
+});
+
+/* ================= MODAL COMPARTILHAR PERGUNTA ================= */
+var modalCompartilhar = document.getElementById('modal-compartilhar');
+var compartilharItemId = null;
+function abrirCompartilhar(itemId){
+  compartilharItemId = itemId;
+  var posto = getPosto(STATE.postoId);
+  var item = posto.itens.find(function(i){ return i.id===itemId; });
+  document.getElementById('cp-pergunta-texto').textContent = item.item;
+  var ligados = itensLigados(posto, item);
+  var setoresOcupados = [item.setor].concat(ligados.map(function(li){ return li.setor; }));
+  var lista = document.getElementById('cp-lista');
+  var disponiveis = SETORES.filter(function(s){ return setoresOcupados.indexOf(s.key)<0; });
+  lista.innerHTML = disponiveis.length
+    ? disponiveis.map(function(s){
+        return '<label class="compartilhar-row"><input type="checkbox" value="'+escapeAttr(s.key)+'"> '+s.icone+' '+escapeHtml(s.key)+'</label>';
+      }).join('')
+    : '<div style="font-size:12.5px;color:var(--muted)">Já compartilhada com todos os setores.</div>';
+  modalCompartilhar.classList.add('open');
+}
+document.getElementById('cp-cancel').addEventListener('click', function(){ modalCompartilhar.classList.remove('open'); });
+document.getElementById('cp-confirmar').addEventListener('click', function(){
+  var posto = getPosto(STATE.postoId);
+  var item = posto.itens.find(function(i){ return i.id===compartilharItemId; });
+  var selecionados = Array.prototype.slice.call(document.querySelectorAll('#cp-lista input[type=checkbox]:checked')).map(function(c){ return c.value; });
+  modalCompartilhar.classList.remove('open');
+  if(!selecionados.length) return;
+  if(!item.grupoId) item.grupoId = uid();
+  selecionados.forEach(function(setorNovo){
+    posto.itens.push({
+      id: uid(), item: item.item, fase: item.fase, setor: setorNovo,
+      responsavel: SETOR_RESPONSAVEL_DEFAULT[setorNovo] || '', status:'Pendente', observacao:'',
+      historico:[], anexos:[], demandas:[], grupoId: item.grupoId
+    });
+  });
+  saveData(posto.id);
   render();
 });
 

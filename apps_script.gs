@@ -5,11 +5,14 @@
  * 1. Crie uma nova planilha Google Sheets (separada das planilhas do CRM e do Horas Extras).
  * 2. Crie duas abas com esses nomes exatos:
  *    - "Postos"  -> cabeçalho linha 1: ID | Nome | Bandeira | DataAbertura | CriadoEm | Observacao
- *    - "Itens"   -> cabeçalho linha 1: ID | PostoID | Item | Fase | Setor | Responsavel | Status | Observacao | Historico | Anexos | Demandas
+ *    - "Itens"   -> cabeçalho linha 1: ID | PostoID | Item | Fase | Setor | Responsavel | Status | Observacao | Historico | Anexos | Demandas | GrupoId
  *    (se a aba "Itens" já existir sem alguma coluna nova, adicione manualmente antes de
  *    reimplantar — sem isso o app ainda funciona (grava na posição certa mesmo sem cabeçalho
  *    nomeado), só fica sem nome visível pra quem olha a planilha direto. "Anexos" guarda
- *    [{nome,url,tipo,quando}], "Demandas" guarda [{id,texto,feito}] por item)
+ *    [{nome,url,tipo,quando}], "Demandas" guarda [{id,texto,feito}] por item. "GrupoId" liga
+ *    cópias da mesma pergunta compartilhadas entre setores — ver "Compartilhar pergunta" no
+ *    index.html: itens com o mesmo GrupoId têm status/responsável independentes, mas texto
+ *    da pergunta e edições dele se propagam entre todos)
  *    - "Setores" -> NÃO precisa criar manualmente, o script cria sozinho (Key | Icone |
  *      ResponsavelPadrao) na primeira chamada depois que você colar este código novo.
  * 3. Menu Extensões -> Apps Script. Apague o conteúdo padrão e cole este arquivo inteiro.
@@ -46,7 +49,8 @@ var CAMPOS_ITEM = [
   {header:'Observacao',   key:'observacao'},
   {header:'Historico',    key:'historico', json:true},
   {header:'Anexos',       key:'anexos', json:true},
-  {header:'Demandas',     key:'demandas', json:true}
+  {header:'Demandas',     key:'demandas', json:true},
+  {header:'GrupoId',      key:'grupoId'}
 ];
 
 var CAMPOS_SETOR = [
@@ -270,7 +274,7 @@ function doPost(e){
       todosItens.push({
         id:it.id, postoId:p.id, item:it.item, fase:it.fase, setor:it.setor,
         responsavel:it.responsavel, status:it.status, observacao:it.observacao, historico:it.historico,
-        anexos:it.anexos, demandas:it.demandas
+        anexos:it.anexos, demandas:it.demandas, grupoId:it.grupoId||''
       });
     });
   });
