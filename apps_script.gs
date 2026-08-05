@@ -227,59 +227,73 @@ function uploadAnexo(payload){
   return file.getUrl();
 }
 
+// Trava: sem ela, dois doPost concorrentes (ex: duas pessoas editando itens do mesmo
+// posto quase ao mesmo tempo, ou o "excluir item" que dispara push da lista inteira +
+// exclusão explícita em paralelo) podiam ler a planilha antes um do outro escrever.
+// Resultado real observado: o mesmo ID inserido duas vezes (pergunta "duplicada"), e o
+// excluirItemPorId (que desloca linhas pra cima ao apagar) rodando ao mesmo tempo que um
+// upsert() com números de linha já desatualizados — o upsert acabava escrevendo em cima
+// da linha errada (a vizinha, deslocada), corrompendo outras perguntas do mesmo card.
+// getScriptLock() serializa as execuções do doPost inteiro, eliminando essa janela.
 function doPost(e){
-  var body = JSON.parse(e.postData.contents);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    var body = JSON.parse(e.postData.contents);
 
-  if(body.uploadAnexo){
-    var url = uploadAnexo(body.uploadAnexo);
-    return ContentService.createTextOutput(JSON.stringify({ok:true, url:url})).setMimeType(ContentService.MimeType.JSON);
-  }
+    if(body.uploadAnexo){
+      var url = uploadAnexo(body.uploadAnexo);
+      return ContentService.createTextOutput(JSON.stringify({ok:true, url:url})).setMimeType(ContentService.MimeType.JSON);
+    }
 
-  if(body.excluirPostoId){
-    excluirPosto(body.excluirPostoId);
-    return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
-  }
+    if(body.excluirPostoId){
+      excluirPosto(body.excluirPostoId);
+      return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
+    }
 
-  if(body.excluirItemId){
-    excluirItemPorId(body.excluirItemId);
-    return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
-  }
+    if(body.excluirItemId){
+      excluirItemPorId(body.excluirItemId);
+      return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
+    }
 
-  if(body.excluirSetorKey){
-    excluirSetorPorKey(body.excluirSetorKey);
-    return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
-  }
+    if(body.excluirSetorKey){
+      excluirSetorPorKey(body.excluirSetorKey);
+      return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
+    }
 
-  if(body.setores){
-    upsert(getSheetSetores(), CAMPOS_SETOR, body.setores, 'key');
-    return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
-  }
+    if(body.setores){
+      upsert(getSheetSetores(), CAMPOS_SETOR, body.setores, 'key');
+      return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
+    }
 
-  if(body.demandasPadrao){
-    upsert(getSheetDemandasPadrao(), CAMPOS_DEMANDA_PADRAO, body.demandasPadrao, 'itemNome');
-    return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
-  }
+    if(body.demandasPadrao){
+      upsert(getSheetDemandasPadrao(), CAMPOS_DEMANDA_PADRAO, body.demandasPadrao, 'itemNome');
+      return ContentService.createTextOutput(JSON.stringify({ok:true})).setMimeType(ContentService.MimeType.JSON);
+    }
 
-  var postos = body.postos || [];
-  if(!postos.length) return ContentService.createTextOutput(JSON.stringify({ok:true}));
+    var postos = body.postos || [];
+    if(!postos.length) return ContentService.createTextOutput(JSON.stringify({ok:true}));
 
-  var postosSemItens = postos.map(function(p){
-    return {id:p.id, nome:p.nome, bandeira:p.bandeira, dataAbertura:p.dataAbertura, criadoEm:p.criadoEm, observacao:p.observacao};
-  });
-  upsert(getSheetPostos(), CAMPOS_POSTO, postosSemItens, 'id');
+    var postosSemItens = postos.map(function(p){
+      return {id:p.id, nome:p.nome, bandeira:p.bandeira, dataAbertura:p.dataAbertura, criadoEm:p.criadoEm, observacao:p.observacao};
+    });
+    upsert(getSheetPostos(), CAMPOS_POSTO, postosSemItens, 'id');
 
-  var todosItens = [];
-  postos.forEach(function(p){
-    (p.itens||[]).forEach(function(it){
-      todosItens.push({
-        id:it.id, postoId:p.id, item:it.item, fase:it.fase, setor:it.setor,
-        responsavel:it.responsavel, status:it.status, observacao:it.observacao, historico:it.historico,
-        anexos:it.anexos, demandas:it.demandas, grupoId:it.grupoId||''
+    var todosItens = [];
+    postos.forEach(function(p){
+      (p.itens||[]).forEach(function(it){
+        todosItens.push({
+          id:it.id, postoId:p.id, item:it.item, fase:it.fase, setor:it.setor,
+          responsavel:it.responsavel, status:it.status, observacao:it.observacao, historico:it.historico,
+          anexos:it.anexos, demandas:it.demandas, grupoId:it.grupoId||''
+        });
       });
     });
-  });
-  upsert(getSheetItens(), CAMPOS_ITEM, todosItens, 'id');
+    upsert(getSheetItens(), CAMPOS_ITEM, todosItens, 'id');
 
-  return ContentService.createTextOutput(JSON.stringify({ok:true}))
-    .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ok:true}))
+      .setMimeType(ContentService.MimeType.JSON);
+  } finally {
+    lock.releaseLock();
+  }
 }

@@ -1052,11 +1052,18 @@ function wireItemRow(row, onStatusChange){
 
 /* Remove local e avisa o backend explicitamente (excluirItemId) — o sync normal (upsert
    por ID em saveData()/syncPush()) só insere/atualiza os itens presentes no payload, nunca
-   apaga; sem esse aviso o item "ressuscitaria" na próxima vez que outro aparelho sincronizasse. */
+   apaga; sem esse aviso o item "ressuscitaria" na próxima vez que outro aparelho sincronizasse.
+   Importante: NÃO chamar saveData()/syncPush() aqui — isso dispararia, em paralelo com o
+   excluirItemId abaixo, um reenvio da lista inteira de itens do posto (nada mudou nos outros
+   itens, só persistência local é necessária). As duas requisições rodando ao mesmo tempo no
+   Apps Script (sem essa trava, o excluirItemId desloca linhas pra cima ao apagar, enquanto o
+   upsert do push ainda usa números de linha já desatualizados) já causou corrupção de itens
+   vizinhos daquele mesmo card — ver LockService no apps_script.gs, que também mitiga isso do
+   lado do servidor, mas evitar a corrida na origem é mais seguro. */
 function excluirItem(postoId, itemId){
   var posto = getPosto(postoId);
   posto.itens = posto.itens.filter(function(i){ return i.id!==itemId; });
-  saveData(postoId);
+  localStorage.setItem('ab_data', JSON.stringify(DATA));
   var url = getScriptUrl();
   if(url){
     fetch(url, { method:'POST', body: JSON.stringify({excluirItemId:itemId}) }).catch(function(){});
