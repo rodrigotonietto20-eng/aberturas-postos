@@ -47,6 +47,12 @@ body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;backgro
 .progress-bar div{height:100%;}
 .posto-card .pct{font-size:12px;color:var(--muted);margin-top:6px;}
 .posto-obs{font-size:12px;font-weight:700;color:var(--pri-deep);background:var(--pri-light);border-left:3px solid var(--pri2);border-radius:6px;padding:5px 8px;margin-bottom:10px;}
+.dias-badge{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:800;border-radius:8px;padding:7px 10px;margin-bottom:10px;}
+.dias-atrasado{background:#fce4e4;color:#c62828;animation:diasPulse 1.4s infinite;}
+.dias-urgente{background:#fdeaea;color:#d32f2f;animation:diasPulse 1.4s infinite;}
+.dias-atencao{background:#fff4e0;color:#e65100;}
+.dias-ok{background:var(--pri-light);color:var(--pri-deep);}
+@keyframes diasPulse{0%,100%{opacity:1;}50%{opacity:.6;}}
 .empty-state{text-align:center;color:var(--muted);padding:40px 20px;}
 
 /* ===== Dashboard ===== */
@@ -770,6 +776,7 @@ function renderListaPostos(){
       html += '<div class="card posto-card" data-id="'+p.id+'">'
         + '<button class="posto-del-btn" data-action="excluir-posto" data-id="'+p.id+'" title="Excluir posto">🗑️</button>'
         + '<h3>'+escapeHtml(p.nome)+'</h3>'
+        + diasAberturaBadgeHTML(p.dataAbertura)
         + '<div class="meta">'+escapeHtml(p.bandeira||'—')+' · abertura '+formatDate(p.dataAbertura)+'</div>'
         + (p.observacao ? '<div class="posto-obs">📝 '+escapeHtml(p.observacao)+'</div>' : '')
         + '<div class="progress-bar">'
@@ -1194,6 +1201,31 @@ function formatDate(d){
 function formatDateTime(ts){
   var d = new Date(ts);
   return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+
+// Alerta de contagem regressiva no card do posto (Lista de Postos) — quanto mais perto (ou já
+// passada) a data de abertura, mais forte o visual (cor + pulsar), pra chamar atenção sem
+// precisar abrir o posto pra descobrir o prazo.
+function diasAberturaBadgeHTML(dataAbertura){
+  if(!dataAbertura) return '';
+  var partes = String(dataAbertura).slice(0,10).split('-');
+  if(partes.length!==3) return '';
+  var alvo = new Date(parseInt(partes[0],10), parseInt(partes[1],10)-1, parseInt(partes[2],10));
+  var hoje = new Date(); hoje.setHours(0,0,0,0); alvo.setHours(0,0,0,0);
+  var dias = Math.round((alvo-hoje)/86400000);
+  var classe, texto;
+  if(dias<0){
+    classe='dias-atrasado'; texto='⚠️ Atrasado '+Math.abs(dias)+' dia'+(Math.abs(dias)===1?'':'s')+' — data já passou';
+  } else if(dias===0){
+    classe='dias-atrasado'; texto='🚨 Abre HOJE!';
+  } else if(dias<=3){
+    classe='dias-urgente'; texto='🚨 Faltam '+dias+' dia'+(dias===1?'':'s')+' para abrir';
+  } else if(dias<=7){
+    classe='dias-atencao'; texto='⏰ Faltam '+dias+' dias para abrir';
+  } else {
+    classe='dias-ok'; texto='📅 Faltam '+dias+' dias para abrir';
+  }
+  return '<div class="dias-badge '+classe+'">'+texto+'</div>';
 }
 
 /* ================= NAV ================= */
